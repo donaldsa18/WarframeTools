@@ -70,6 +70,11 @@ regex_alphabet = re.compile('[^a-zA-Z\s]')
 
 datetime_format = "%Y-%m-%d %I.%M.%S%p"
 
+def safe_cast(val, to_type,default=None):
+	try:
+		return to_type(val)
+	except (ValueError, TypeError):
+		return default
 
 def init():
     global prime_dict, primes, prices, ducats, log, skip_screenshot, tesseract_log
@@ -77,13 +82,13 @@ def init():
     with open(price_csv, mode='r') as csv_file:
         reader = csv.reader(csv_file)
         next(reader)
-        prices = {rows[0]: int(rows[1]) for rows in reader}
+        prices = {rows[0]: safe_cast(rows[1],int,0) for rows in reader}
     prices["Forma Blueprint"] = 0
 
     with open(ducats_csv, mode='r') as csv_file:
         reader = csv.reader(csv_file)
         next(reader)
-        ducats = {rows[0]: int(rows[1]) for rows in reader}
+        ducats = {rows[0]: safe_cast(rows[1],int,0) for rows in reader}
     ducats['Forma Blueprint'] = 0
 
     # make a dictionary of prime words
