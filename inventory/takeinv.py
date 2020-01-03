@@ -40,7 +40,7 @@ def sanitize_digit(input_str):
     return regex_digit.sub('', input_str)
 
 
-primes_txt = '..\ocr\primes.txt'
+primes_txt = '..\ducats\primes.txt'
 with open(primes_txt, 'r') as f:
     prime_dict = [line.strip() for line in f]
 
@@ -71,12 +71,6 @@ def find_numbers(cnts):
     last_y = col_h * 4
     for c in cnts:
         (x, y, w, h) = cv2.boundingRect(c)
-        # if y % col_h < 20 or x % col_w < 20:
-        # rect = cropped_col.copy()
-        # cv2.rectangle(rect, (x, y), (x + w, y + h), (0, 0, 255), 2)
-        # cv2.imshow('primes', rect)
-        # print("x={} y={} w={} h={}".format(x, y, w, h))
-        # cv2.waitKey()
         if y % col_h < 20 and x % col_w < 20 and last_y - y > col_h / 2:
             if 8 <= h <= 17:
                 if w < 8:
@@ -330,7 +324,7 @@ def check_screenshot():
 
 def main():
     init_digit_imgs()
-    # TODO add loop after
+
     # surround in try catch since threads don't receive keyboard interrupts
     num_threads = 7
 
@@ -350,8 +344,4 @@ def main():
 
 
 main()
-# init_digit_imgs()
-# prime_img = screenshot()
-# for img_x in range(0, prime_img.shape[1], 185):
-#    read_col(prime_img[:, img_x:img_x+col_w])
-# inventory_csv.close()
+

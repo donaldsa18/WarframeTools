@@ -15,7 +15,6 @@ If(Test-Path $numItemsPath) {
 	}
 }
 
-
 If(Test-Path $csvPath) {
 	Remove-Item $csvPath
 }

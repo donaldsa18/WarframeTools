@@ -1,8 +1,10 @@
 $region = "en"
 $platform = "pc"
+$apiURL = "https://api.warframe.market/v1/items"
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-$json = Invoke-RestMethod -Method GET -Uri "https://api.warframe.market/v1/items"
+
+$json = Invoke-RestMethod -Method GET -Uri $apiURL
 
 $items = $json.payload.items
 
@@ -12,7 +14,7 @@ If(Test-Path ./allprice.csv) {
 Add-Content -Path ./allprice.csv -Value '"Item","Plat","Status"'
 
 ForEach ($item in $items) {
-	$json = Invoke-RestMethod -Method GET -Uri "https://api.warframe.market/v1/items/$($item.url_name)/orders"
+	$json = Invoke-RestMethod -Method GET -Uri "$($apiURL)/$($item.url_name)/orders"
 	$orders = $json.payload.orders | where {$_.region -match $region -and $_.platform -match $platform}
 	$selling = $orders | where {$_.user.status -match "ingame" -and $_.order_type -match "sell"}
 	$status = "Online"

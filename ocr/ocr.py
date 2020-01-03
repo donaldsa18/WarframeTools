@@ -49,7 +49,7 @@ skip_screenshot = True
 
 price_csv = '..\\warframemarket\\allprice.csv'
 ducats_csv = '..\\ducats\\ducats.csv'
-primes_txt = 'primes.txt'
+primes_txt = '..\\ducats\\primes.txt'
 
 
 # HSV bounds for getting rid of background
