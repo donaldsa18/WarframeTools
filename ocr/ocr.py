@@ -27,11 +27,11 @@ screenshot_name = 'screenshot.bmp'
 title = "Warframe Prime Helper"
 
 w = 908
-h = 55
-x_offset = 506
+h = 70
+x_offset = 521
 y_offset = 400
 
-box_w = 220
+box_w = 223
 half_box_w = int(box_w/2)
 crop_list = [(0, 27, w, h),  # the entire bottom
              (half_box_w, 0, half_box_w*3, h),  # assumes 3 relics
@@ -71,10 +71,10 @@ regex_alphabet = re.compile('[^a-zA-Z\s]')
 datetime_format = "%Y-%m-%d %I.%M.%S%p"
 
 def safe_cast(val, to_type,default=None):
-	try:
-		return to_type(val)
-	except (ValueError, TypeError):
-		return default
+    try:
+        return to_type(val)
+    except (ValueError, TypeError):
+        return default
 
 def init():
     global prime_dict, primes, prices, ducats, log, skip_screenshot, tesseract_log
@@ -92,7 +92,7 @@ def init():
     ducats['Forma Blueprint'] = 0
 
     # make a dictionary of prime words
-    with open(primes_txt, 'r') as f:
+    with open(primes_txt, 'r', encoding='utf16') as f:
         prime_dict = [line.strip() for line in f]
 
     primes = [key for key, value in prices.items() if "Prime" in key and "Set" not in key]
@@ -212,7 +212,6 @@ def run_tesseract(input_filename, output_filename_base, lang=None, boxes=False, 
 
     if config:
         command += shlex.split(config)
-
     proc = subprocess.Popen(command, stderr=subprocess.PIPE)
     return (proc.wait(), proc.stderr.read())
 
@@ -226,14 +225,17 @@ def read_box(crop, filtered, read_primes, text, table, old_read_primes):
     cur_time = datetime.now().strftime(datetime_format)
     if status:
         log.write("{}: Failed to read image x={}\n".format(cur_time, crop[0]))
+        log.flush()
         tesseract_log.write("{}: {}\n".format(cur_time, e.strip()))
         if not skip_screenshot:
             cv2.imwrite('screenshots/{}-error.bmp'.format(cur_time), filtered)
         return
     #else:
     #    log.write("{}: Succeeded reading image x={}\n".format(cur_time, crop[0]))
+    #    log.flush()
+        
     full_output_name = "{}.txt".format(output_name)
-
+    
     with open(full_output_name, 'r') as file:
         ocr_output = file.read().strip()
     os.remove(full_output_name)
@@ -288,12 +290,14 @@ def read_screen(old_read_primes, old_filtered):
                 ex.submit(read_box, crop, filtered, read_primes, text, table, old_read_primes)
     except KeyboardInterrupt:
         return
-
-    read_primes.sort()
+    #for crop in crop_list:
+    #    read_box(crop, filtered, read_primes, text, table, old_read_primes)
+    #read_primes.sort()
 
     if len(read_primes) == 0 and len(old_read_primes) != 0:
         os.system('cls')
-
+    #log.write("{}: OCR='{}' Primes={}\n".format(cur_time, text, read_primes))
+    #log.flush()
     if read_primes != old_read_primes:
         if len(read_primes) != 0:
             if not skip_screenshot:

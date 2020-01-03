@@ -1,2 +1,6 @@
 *.txt
 *.csv
+*.log
+ocr/screenshot.bmp
+ocr/screenshots/
+ocr/temp/
