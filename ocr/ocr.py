@@ -164,7 +164,7 @@ def screenshot():
 
     # make numpy img
     bmpRGB = dataBitMap.GetBitmapBits(True)
-    img = np.fromstring(bmpRGB, dtype='uint8')
+    img = np.frombuffer(bmpRGB, dtype='uint8')
     img.shape = (h, w, 4)
 
     # Free Resources
