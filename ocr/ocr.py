@@ -152,6 +152,12 @@ class OCR:
     def set_h(self, val):
         self.h = val
 
+    def set_v1(self, val):
+        self.lower[2] = val
+
+    def set_v2(self, val):
+        self.upper[0] = val
+
     def screenshot(self):
         if self.skip_screenshot:
             return cv2.imread(self.screenshot_name)

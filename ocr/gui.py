@@ -34,22 +34,25 @@ class Window(QWidget):
         header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
 
-        self.slider_names = ['x', 'y', 'w', 'h']
+        self.slider_names = ['x', 'y', 'w', 'h', 'v1', 'v2']
         self.sliders = {x: QSlider(Qt.Horizontal) for x in self.slider_names}
         slider_labels = {x: QLabel(x) for x in self.slider_names}
-        slider_default_values = {'x': 521, 'y': 400, 'w': 908, 'h': 70}
-        self.slider_values = {x: QLabel(str(slider_default_values[x])) for x in self.slider_names}
+        self.slider_default_values = {'x': 521, 'y': 400, 'w': 908, 'h': 70, 'v1': 197, 'v2': 180}
+        self.slider_values = {x: QLabel(str(self.slider_default_values[x])) for x in self.slider_names}
 
+        self.sliders['x'].setMaximum(int(warframe_width / 2))
+        self.sliders['y'].setMaximum(int(warframe_height / 2))
+        self.sliders['w'].setMaximum(warframe_width)
+        self.sliders['h'].setMaximum(warframe_height)
+        self.sliders['v1'].setMaximum(255)
+        self.sliders['v2'].setMaximum(255)
         for slider_name in self.slider_names:
             self.sliders[slider_name].setMinimum(0)
             self.sliders[slider_name].setSingleStep(1)
             #self.sliders[slider_name].valueChanged.connect(self.slider_values[slider_name].setNum)
             self.slider_values[slider_name].setFixedWidth(35)
-            self.sliders[slider_name].setValue(slider_default_values[slider_name])
-        self.sliders['x'].setMaximum(int(warframe_width / 2))
-        self.sliders['y'].setMaximum(int(warframe_height / 2))
-        self.sliders['w'].setMaximum(warframe_width)
-        self.sliders['h'].setMaximum(warframe_height)
+            self.sliders[slider_name].setValue(self.slider_default_values[slider_name])
+
 
         self.is_slider_max_set = False
 
@@ -169,6 +172,8 @@ class Window(QWidget):
             self.sliders['y'].setMaximum(int(y / 2))
             self.sliders['w'].setMaximum(x)
             self.sliders['h'].setMaximum(y)
+            for slider_name in self.slider_names:
+                self.sliders[slider_name].setValue(self.slider_default_values[slider_name])
             self.is_slider_max_set = True
 
     def toggle_button(self):
@@ -223,6 +228,10 @@ class Window(QWidget):
             ocr.set_w(val)
         if dim == 'h':
             ocr.set_h(val)
+        if dim == 'v1':
+            ocr.set_v1(val)
+        if dim == 'v2':
+            ocr.set_v2(val)
 
     def select_max(self):
         # TODO doesnt work
