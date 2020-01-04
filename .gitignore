@@ -5,4 +5,5 @@ ocr/screenshot.bmp
 ocr/screenshots/
 ocr/temp/
 ocr/.idea
+ocr/__pycache__
 env/

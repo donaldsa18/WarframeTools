@@ -35,15 +35,15 @@ class OCR():
         self.y_offset = 400
 
         box_w = 223
-        half_box_w = int(box_w/2)
+        half_box_w = int(box_w / 2)
         self.crop_list = [(0, 27, w, h),  # the entire bottom
-                     (half_box_w, 0, half_box_w*3, h),  # assumes 3 relics
-                     (half_box_w*3, 0, half_box_w*5, h),
-                     (half_box_w*5, 0, half_box_w*7, h),
-                     (0, 0, box_w, h),  # assumes 2 or 4 relics
-                     (box_w, 0, box_w*2, h),
-                     (box_w*2, 0, box_w*3, h),
-                     (box_w*3, 0, w, h)]
+                          (half_box_w, 0, half_box_w * 3, h),  # assumes 3 relics
+                          (half_box_w * 3, 0, half_box_w * 5, h),
+                          (half_box_w * 5, 0, half_box_w * 7, h),
+                          (0, 0, box_w, h),  # assumes 2 or 4 relics
+                          (box_w, 0, box_w * 2, h),
+                          (box_w * 2, 0, box_w * 3, h),
+                          (box_w * 3, 0, w, h)]
 
         self.interval = 1
 
@@ -84,13 +84,13 @@ class OCR():
         with open(self.price_csv, mode='r') as csv_file:
             reader = csv.reader(csv_file)
             next(reader)
-            self.prices = {rows[0]: self.safe_cast(rows[1],int,0) for rows in reader}
+            self.prices = {rows[0]: self.safe_cast(rows[1], int, 0) for rows in reader}
         self.prices["Forma Blueprint"] = 0
 
         with open(self.ducats_csv, mode='r') as csv_file:
             reader = csv.reader(csv_file)
             next(reader)
-            self.ducats = {rows[0]: self.safe_cast(rows[1],int,0) for rows in reader}
+            self.ducats = {rows[0]: self.safe_cast(rows[1], int, 0) for rows in reader}
         self.ducats['Forma Blueprint'] = 0
 
         # make a dictionary of prime words
@@ -107,7 +107,8 @@ class OCR():
         os.system('TITLE {}'.format(self.title))
 
         parser = OptionParser()
-        parser.add_option("-d", "--debug", action="store_true", dest="debug", default=False, help="uses the current screenshot for debug purposes")
+        parser.add_option("-d", "--debug", action="store_true", dest="debug", default=False,
+                          help="uses the current screenshot for debug purposes")
         (options, args) = parser.parse_args()
         self.skip_screenshot = options.debug
 
@@ -129,7 +130,7 @@ class OCR():
             close_words = difflib.get_close_matches(word, self.prime_dict, n=1)
             if len(close_words) != 0:
                 dict_words.append(close_words[0])
-            #else:
+            # else:
             #    dict_words.append('|')
         corrected = " ".join(dict_words)
         return corrected
@@ -203,8 +204,8 @@ class OCR():
         return proc.wait(), proc.stderr.read()
 
     def read_box(self, crop, filtered, read_primes, text, table, old_read_primes):
-        input_name = 'temp\\crop_{}.bmp'.format(crop[0]+crop[1])
-        output_name = 'temp\\tessout_{}'.format(crop[0]+crop[1])
+        input_name = 'temp\\crop_{}.bmp'.format(crop[0] + crop[1])
+        output_name = 'temp\\tessout_{}'.format(crop[0] + crop[1])
         cv2.imwrite(input_name, filtered[crop[1]:crop[3], crop[0]:crop[2]])
 
         status, e = self.run_tesseract(input_name, output_name)
@@ -216,7 +217,7 @@ class OCR():
             if not self.skip_screenshot:
                 cv2.imwrite('screenshots/{}-error.bmp'.format(cur_time), filtered)
             return
-        #else:
+        # else:
         #    log.write("{}: Succeeded reading image x={}\n".format(cur_time, crop[0]))
         #    log.flush()
 
@@ -229,7 +230,7 @@ class OCR():
 
         sanitized = self.sanitize(ocr_output)
         ocr_text = self.title_case(sanitized)
-        text[crop[0]+crop[1]] = ocr_text
+        text[crop[0] + crop[1]] = ocr_text
         dict_text = self.dict_match(ocr_text)
         self.update_table(dict_text, table, read_primes, old_read_primes)
 
@@ -248,7 +249,6 @@ class OCR():
         diff = cv2.subtract(img1, img2)
         return diff.mean() < 1
 
-
     def read_screen(self, old_read_primes, old_filtered):
         screenshot_img = self.screenshot()
         filtered = self.filter_img(screenshot_img)
@@ -261,7 +261,7 @@ class OCR():
 
         # make formatted table
         table = PrettyTable()
-        table.field_names = ['Prime', 'Plat','Ducats']
+        table.field_names = ['Prime', 'Plat', 'Ducats']
         table.sortby = 'Plat'
 
         read_primes = []
@@ -274,9 +274,9 @@ class OCR():
                     ex.submit(self.read_box, crop, filtered, read_primes, text, table, old_read_primes)
         except KeyboardInterrupt:
             return
-        #for crop in crop_list:
+        # for crop in crop_list:
         #    read_box(crop, filtered, read_primes, text, table, old_read_primes)
-        #read_primes.sort()
+        # read_primes.sort()
 
         if len(read_primes) == 0 and len(old_read_primes) != 0:
             os.system('cls')
@@ -300,7 +300,7 @@ class OCR():
             end = datetime.now()
             duration = (end - start).total_seconds()
             if duration < self.interval:
-                time.sleep(self.interval-duration)
+                time.sleep(self.interval - duration)
 
 
 if __name__ == '__main__':
