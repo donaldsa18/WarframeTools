@@ -22,8 +22,8 @@ from concurrent.futures import ThreadPoolExecutor
 from optparse import OptionParser
 
 
-class OCR():
-    def __init__(self, debug=False, console=False, gui=None):
+class OCR:
+    def __init__(self, debug=None, gui=None):
         self.window_name = "Warframe"
         self.screenshot_name = 'screenshot.bmp'
 
@@ -73,6 +73,10 @@ class OCR():
 
         self.tesseract_cmd = 'C:\\Program Files (x86)\\Tesseract-OCR\\tesseract.exe'
 
+        self.gui = gui
+        #if self.gui is not None:
+        #    self.gui.set_sliders_default(self.x_offset,self.y_offset,self.w,self.h)
+
     def safe_cast(self, val, to_type, default=None):
         try:
             return to_type(val)
@@ -103,14 +107,15 @@ class OCR():
         self.log = open('log.txt', 'a+')
 
         self.tesseract_log = open('tesseract.log', 'a+')
-        os.system('cls')
-        os.system('TITLE {}'.format(self.title))
-
-        parser = OptionParser()
-        parser.add_option("-d", "--debug", action="store_true", dest="debug", default=False,
-                          help="uses the current screenshot for debug purposes")
-        (options, args) = parser.parse_args()
-        self.skip_screenshot = options.debug
+        if self.gui is None:
+            os.system('cls')
+            os.system('TITLE {}'.format(self.title))
+        if self.skip_screenshot is None:
+            parser = OptionParser()
+            parser.add_option("-d", "--debug", action="store_true", dest="debug", default=False,
+                              help="uses the current screenshot for debug purposes")
+            (options, args) = parser.parse_args()
+            self.skip_screenshot = options.debug
 
     def window_enumeration_handler(self, hwnd, top_windows):
         top_windows.append((hwnd, win32gui.GetWindowText(hwnd)))
@@ -135,9 +140,21 @@ class OCR():
         corrected = " ".join(dict_words)
         return corrected
 
+    def set_x_offset(self, val):
+        self.x_offset = val
+
+    def set_y_offset(self, val):
+        self.y_offset = val
+
+    def set_w(self, val):
+        self.w = val
+
+    def set_h(self, val):
+        self.h = val
+
     def screenshot(self):
         if self.skip_screenshot:
-            return cv2.imread("screenshot.bmp")
+            return cv2.imread(self.screenshot_name)
         hwnd = None
         while not hwnd:
             hwnd = win32gui.FindWindow(None, self.window_name)
@@ -146,6 +163,9 @@ class OCR():
         rect = win32gui.GetWindowRect(hwnd)
         x = rect[0]
         y = rect[1]
+        if self.gui is not None and not self.gui.is_slider_max_set:
+            self.gui.set_sliders_range(rect[2]-x, rect[3]-y)
+
         top = self.y_offset + y
         left = self.x_offset + x
         wDC = win32gui.GetWindowDC(hwnd)
@@ -169,6 +189,10 @@ class OCR():
         win32gui.DeleteObject(dataBitMap.GetHandle())
 
         return cv2.cvtColor(img, cv2.COLOR_RGBA2BGR)
+
+    def save_screenshot(self):
+        screenshot = self.screenshot()
+        cv2.imwrite(self.screenshot_name, screenshot)
 
     def filter_img(self, img):
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
@@ -240,19 +264,37 @@ class OCR():
                 if p not in read_primes:
                     read_primes.append(p)
                     if len(old_read_primes) == 0:
-                        table.add_row([p, self.prices[p], self.ducats[p]])
-                        os.system('cls')
-                        print(table)
+                        row = [p, self.prices[p], self.ducats[p]]
+                        if self.gui is not None:
+                            self.gui.insert_table_row(row)
+                            self.gui.select_max()
+                        else:
+                            table.add_row(row)
+                            os.system('cls')
+                            print(table)
                         self.bring_to_front()
 
     def image_identical(self, img1, img2):
-        diff = cv2.subtract(img1, img2)
-        return diff.mean() < 1
+        try:
+            diff = cv2.subtract(img1, img2)
+            return diff.mean() < 1
+        except:
+            return False
+
+    def update_screen(self, screenshot, filtered):
+        self.gui.update_images(screenshot, filtered)
 
     def read_screen(self, old_read_primes, old_filtered):
         screenshot_img = self.screenshot()
         filtered = self.filter_img(screenshot_img)
 
+        if self.gui is not None:
+            #self.update_screen(screenshot_img, filtered)
+            try:
+                with ThreadPoolExecutor(max_workers=len(self.crop_list)) as ex:
+                    ex.submit(self.update_screen, screenshot_img, filtered)
+            except KeyboardInterrupt:
+                return
         if self.image_identical(filtered, old_filtered):
             return old_read_primes.copy(), filtered
 
@@ -279,7 +321,10 @@ class OCR():
         # read_primes.sort()
 
         if len(read_primes) == 0 and len(old_read_primes) != 0:
-            os.system('cls')
+            if self.gui is not None:
+                self.gui.clear_table()
+            else:
+                os.system('cls')
         if read_primes != old_read_primes:
             if len(read_primes) != 0:
                 if not self.skip_screenshot:
@@ -290,11 +335,11 @@ class OCR():
                 self.log.flush()
         return read_primes, filtered
 
-    def main(self):
+    def main(self, thread=None):
         self.init()
         old_read_primes = []
         old_filtered = 0
-        while True:
+        while thread is None or not thread.exit_now:
             start = datetime.now()
             old_read_primes, old_filtered = self.read_screen(old_read_primes, old_filtered)
             end = datetime.now()
