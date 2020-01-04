@@ -1,9 +1,9 @@
-from PyQt5.QtWidgets import QApplication, QTableWidget, QGridLayout, QWidget, QVBoxLayout, QLabel, QAbstractItemView, QTableWidgetItem, QHBoxLayout, QSlider, QGridLayout, QGroupBox, QCheckBox, QHeaderView
+from PyQt5.QtWidgets import QApplication, QTableWidget, QGridLayout, QWidget, QVBoxLayout, QLabel, QAbstractItemView, QTableWidgetItem, QHBoxLayout, QSlider, QGridLayout, QGroupBox, QCheckBox, QHeaderView, QPushButton, QProgressBar
 from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5.QtCore import Qt
 import qdarkstyle
 
-icon_path = '.\warframe.ico'
+icon_path = 'warframe.ico'
 
 app = QApplication([])
 app.setWindowIcon(QIcon(icon_path))
@@ -14,7 +14,7 @@ window = QWidget()
 layout = QVBoxLayout()
 
 image_label = QLabel()
-image = QPixmap('..\\temp\\crop_27.bmp')
+image = QPixmap('temp\\crop_27.bmp')
 image_label.setPixmap(image)
 
 bot_layout = QHBoxLayout()
@@ -44,28 +44,73 @@ sliders['w'].setMaximum(warframe_width)
 sliders['h'].setMaximum(warframe_height)
 
 grid = QGridLayout()
-grid.setColumnStretch(3,5)
+grid.setColumnStretch(3,7)
+grid.setContentsMargins(7,7,7,30)
 
+pause_button = QPushButton("Pause")
+def toggle_button():
+	if pause_button.text() == "Pause":
+		pause_button.setText("Resume")
+	else:
+		pause_button.setText("Pause")
+
+pause_button.clicked.connect(toggle_button)
+
+grid.addWidget(pause_button,0,0,1,3)
 
 check_box = QCheckBox("Prefer platinum")
 check_box.setChecked(True)
-grid.addWidget(check_box,0,0,1,3)
-i = 1
+check_box.toggle()
+
+grid.addWidget(check_box,1,1,1,3)
+
+update_layout = QGridLayout()
+update_layout.setColumnStretch(4,2)
+update_layout.setContentsMargins(7,7,7,60)
+
+update_prices_button = QPushButton("Update Prices")
+update_prices_progress = QProgressBar()
+update_layout.addWidget(update_prices_button,0,0)
+update_layout.addWidget(update_prices_progress,0,1)
+
+last_updated_label = QLabel("Last Updated")
+last_updated_value = QLabel("1/1/2020")
+update_layout.addWidget(last_updated_label,1,0)
+update_layout.addWidget(last_updated_value,1,1)
+
+num_parts_label = QLabel("Prime Parts")
+num_parts_value = QLabel("100")
+update_layout.addWidget(num_parts_label,2,0)
+update_layout.addWidget(num_parts_value,2,1)
+
+latest_item_label = QLabel("Latest Prime")
+latest_item_value = QLabel("Ivara Prime")
+update_layout.addWidget(latest_item_label,3,0)
+update_layout.addWidget(latest_item_value,3,1)
+
+update_box = QGroupBox("Updates")
+update_box.setLayout(update_layout)
+update_box.setFixedWidth(190)
+update_box.setFixedHeight(212)
+i = 2
 for slider_name in slider_names:
 	grid.addWidget(slider_labels[slider_name],i,0)
 	grid.addWidget(slider_values[slider_name],i,1)
 	grid.addWidget(sliders[slider_name],i,2)
 	i = i + 1
 
-
 group_box = QGroupBox("Preferences")
 group_box.setLayout(grid)
 group_box.setFixedWidth(190)
+group_box.setFixedHeight(212)
+
 bot_layout.addWidget(table)
 bot_layout.addWidget(group_box)
+bot_layout.addWidget(update_box)
 
 bot_box = QGroupBox()
 bot_box.setLayout(bot_layout)
+bot_box.setFixedHeight(257)
 
 layout.addWidget(image_label)
 layout.addWidget(bot_box)
