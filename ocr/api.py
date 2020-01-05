@@ -20,10 +20,14 @@ class APIReader:
             self.gui = gui
         self.active_mission_details = set()
         self.scheduler = sched.scheduler(time.time, time.sleep)
+        self.exit_now = False
+        self.next_event = None
 
     def run(self):
         self.update()
-        self.scheduler.run()
+        self.scheduler.run(blocking=False)
+        while not self.exit_now:
+            time.sleep(1)
 
     def update(self):
         response = requests.get(self.api_str)
@@ -46,9 +50,14 @@ class APIReader:
             if self.gui is None:
                 print('{} {} {} {}'.format(modifier, name, node_type, expire))
         cur_time = time.time()
-        self.scheduler.enterabs(cur_time+30, 1, self.update)
+        if not self.exit_now:
+            self.next_event = self.scheduler.enterabs(cur_time+30, 1, self.update)
         if need_update:
             self.update_table()
+
+    def cancel_event(self):
+        self.exit_now = True
+        self.scheduler.cancel(self.next_event)
 
     def filter_expired_missions(self):
         cur_time = time.time()

@@ -1,14 +1,18 @@
 from PyQt5.QtWidgets import QApplication, QTableWidget, QWidget, QVBoxLayout, QLabel, QAbstractItemView, QHBoxLayout, \
     QSlider, QGridLayout, QGroupBox, QCheckBox, QHeaderView, QPushButton, QProgressBar, QTableWidgetItem, QDialog
 from PyQt5.QtGui import QIcon, QPixmap, QImage
-from PyQt5.QtCore import Qt, QThread, QTimer
+from PyQt5.QtCore import Qt, QThread, QTimer, QDateTime
 import qdarkstyle
 from functools import partial
 from ocr import OCR
 from api import APIReader
+from market_api import MarketReader
 import time
-import sched
-
+import threading
+import sys
+import traceback
+import inspect
+from concurrent.futures import ThreadPoolExecutor
 
 class Window(QWidget):
     def __init__(self):
@@ -17,6 +21,8 @@ class Window(QWidget):
         self.icon_path = 'warframe.ico'
 
         #self.layout = QVBoxLayout()
+        self.market_api = None
+
 
         self.image_label = QLabel()
         image = QPixmap('temp\\crop_27.bmp')
@@ -96,26 +102,41 @@ class Window(QWidget):
         update_layout.setAlignment(Qt.AlignTop)
         update_layout.setContentsMargins(0, 0, 0, 0)
 
-        update_prices_button = QPushButton("Update Prices")
-        update_prices_progress = QProgressBar()
-        update_prices_progress.setFixedWidth(110)
-        update_layout.addWidget(update_prices_button, 0, 0)
-        update_layout.addWidget(update_prices_progress, 0, 1)
+        self.update_prices_button = QPushButton("Update Prices")
+        self.update_prices_button.clicked.connect(self.update_prices)
+        self.update_prices_progress = QProgressBar()
+        self.update_prices_progress.setFixedWidth(110)
+        self.update_prices_progress.setRange(0, 100)
+        update_layout.addWidget(self.update_prices_button, 0, 0)
+        update_layout.addWidget(self.update_prices_progress, 0, 1)
 
-        last_updated_label = QLabel("Last Updated")
-        last_updated_value = QLabel("1/1/2020")
-        update_layout.addWidget(last_updated_label, 1, 0)
-        update_layout.addWidget(last_updated_value, 1, 1)
+        self.update_ducats_button = QPushButton("Update Ducats")
+        self.update_ducats_button.clicked.connect(self.update_ducats)
+        self.update_ducats_progress = QProgressBar()
+        self.update_ducats_progress.setFixedWidth(110)
+        self.update_ducats_progress.setRange(0, 100)
+        update_layout.addWidget(self.update_ducats_button, 1, 0)
+        update_layout.addWidget(self.update_ducats_progress, 1, 1)
+
+        last_updated_prices_label = QLabel("Prices Updated")
+        self.last_updated_prices_value = QLabel("1/1/2020")
+        update_layout.addWidget(last_updated_prices_label, 2, 0)
+        update_layout.addWidget(self.last_updated_prices_value, 2, 1)
+
+        last_updated_ducats_label = QLabel("Ducats Updated")
+        self.last_updated_ducats_value = QLabel("1/1/2020")
+        update_layout.addWidget(last_updated_ducats_label, 3, 0)
+        update_layout.addWidget(self.last_updated_ducats_value, 3, 1)
 
         num_parts_label = QLabel("Prime Parts")
-        num_parts_value = QLabel("100")
-        update_layout.addWidget(num_parts_label, 2, 0)
-        update_layout.addWidget(num_parts_value, 2, 1)
+        self.num_parts_value = QLabel("100")
+        update_layout.addWidget(num_parts_label, 4, 0)
+        update_layout.addWidget(self.num_parts_value, 4, 1)
 
         latest_item_label = QLabel("Latest Prime")
-        latest_item_value = QLabel("Ivara Prime")
-        update_layout.addWidget(latest_item_label, 3, 0)
-        update_layout.addWidget(latest_item_value, 3, 1)
+        self.latest_item_value = QLabel("Ivara Prime")
+        update_layout.addWidget(latest_item_label, 5, 0)
+        update_layout.addWidget(self.latest_item_value, 5, 1)
 
         update_box = QGroupBox("Updates")
         update_box.setLayout(update_layout)
@@ -278,6 +299,52 @@ class Window(QWidget):
         self.show()
         self.setFixedSize(self.layout.sizeHint())
 
+        self.ducats_thread = None
+        self.prices_thread = None
+
+    def update_prices(self):
+        self.prices_thread = threading.Thread(name="prices_thread", target=self.market_api.update_prices)
+        self.prices_thread.start()
+
+        self.update_prices_button.setEnabled(False)
+        self.update_ducats_button.setEnabled(False)
+
+    def update_ducats(self):
+        self.ducats_thread = threading.Thread(name="ducats_thread", target=self.market_api.update_ducats)
+        self.ducats_thread.start()
+
+        self.update_prices_button.setEnabled(False)
+        self.update_ducats_button.setEnabled(False)
+
+    def update_primes_info(self, num, latest):
+        self.num_parts_value.setNum(num)
+        self.latest_item_value.setText(latest)
+        self.update_prices_progress.setMaximum(num)
+        self.update_ducats_progress.setMaximum(num)
+
+    def update_ducats_time(self):
+        datetime = QDateTime.currentDateTime()
+        self.last_updated_ducats_value.setText(datetime.toString("%b %d %Y %H:%M:%S"))
+        self.update_ducats_progress.setMaximum(100)
+        self.update_ducats_progress.setValue(100)
+
+    def update_prices_time(self):
+        datetime = QDateTime.currentDateTime()
+        self.last_updated_prices_value.setText(datetime.toString("%b %d %Y %H:%M:%S"))
+        self.update_prices_progress.setMaximum(100)
+        self.update_prices_progress.setValue(100)
+
+    def set_update_prices_progress(self, val, max_val):
+        self.update_prices_progress.setValue(val)
+
+    def set_update_ducats_progress(self, val, max_val):
+
+        self.update_ducats_progress.setValue(val)
+
+    def finished_update_progress(self):
+        self.update_prices_button.setEnabled(True)
+        self.update_ducats_button.setEnabled(True)
+
     def show_preferences(self):
         self.dialog.exec_()
 
@@ -385,6 +452,7 @@ class Window(QWidget):
         for slider_name in self.slider_names:
             self.sliders[slider_name].valueChanged.connect(partial(self.set_ocr_crop, ocr, slider_name))
         self.ocr = ocr
+        self.market_api = MarketReader(ocr=self.ocr, gui=self)
 
     def set_hidden_relic(self, relic, checkbox):
         if self.hide_relics[relic].isChecked():
@@ -448,63 +516,68 @@ class Window(QWidget):
         if should_update:
             self.setFixedSize(self.layout.sizeHint())
 
+    def __exit__(self):
+        self.market_api.exit_now = True
+        self.ocr.exit_now = True
+        #self.prices_thread.join()
+        #self.ducats_thread.join()
+
 
 class OCRThread(QThread):
     def __init__(self, gui):
         QThread.__init__(self)
-        self.exit_now = False
         self.ocr = OCR(debug=False, gui=gui)
 
     def __del__(self):
-        self.exit_now = True
+        self.ocr.exit_now = True
+        self.ocr_thread.join()
         self.wait()
 
     def run(self):
-        self.ocr.main(thread=self)
+        self.ocr_thread = threading.Thread(name="ocr_thread", target=self.ocr.main)
+        self.ocr_thread.start()
+        while self.ocr is not None and not self.ocr.exit_now:
+            time.sleep(1)
 
 
 class APIThread(QThread):
     def __init__(self, gui):
         QThread.__init__(self)
         self.api = APIReader(gui=gui)
+        self.api_thread = None
 
     def __del__(self):
+        self.api.cancel_event()
         self.wait()
 
     def run(self):
+        self.api_thread = threading.Thread(name="api_thread", target=api.run)
         self.api.run()
 
-class TableThread(QThread):
-    def __init__(self, gui):
-        QThread.__init__(self)
-        #self.scheduler = sched.scheduler(time.time, time.sleep)
-        self.timer = QTimer(self)
-        self.timer.timeout.connect(self.update)
-        self.gui = gui
 
-    def __del__(self):
-        self.wait()
+if __name__ == "__main__":
+    app = QApplication([])
+    window = Window()
+    app.setWindowIcon(QIcon(window.icon_path))
+    dark_stylesheet = qdarkstyle.load_stylesheet_pyqt5()
+    app.setStyleSheet(dark_stylesheet)
 
-    def run(self):
-        self.timer.start(1000)
+    ocr_thread = OCRThread(window)
+    window.set_ocr_connection(ocr_thread.ocr)
+    ocr_thread.start()
 
-    def update(self):
-        self.gui.update_mission_table_time()
+    api = APIReader(gui=window)
+    api_thread = APIThread(window)
+    api_thread.start()
 
-app = QApplication([])
-window = Window()
-app.setWindowIcon(QIcon(window.icon_path))
-dark_stylesheet = qdarkstyle.load_stylesheet_pyqt5()
-app.setStyleSheet(dark_stylesheet)
+    market_api = window.market_api
 
-thread = OCRThread(window)
-window.set_ocr_connection(thread.ocr)
-thread.start()
+    app.exec_()
+    market_api.exit_now = True
+    ocr_thread.terminate()
+    api_thread.terminate()
 
-api_thread = APIThread(window)
-api_thread.start()
 
-#table_thread = TableThread(window)
-#table_thread.start()
-
-app.exec_()
+    # use to figure out if any threads are keeping python open
+    # time.sleep(1)
+    # print(str({t.ident: t.name for t in threading.enumerate()}))

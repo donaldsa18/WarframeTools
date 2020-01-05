@@ -74,6 +74,7 @@ class OCR:
         self.tesseract_cmd = 'C:\\Program Files (x86)\\Tesseract-OCR\\tesseract.exe'
 
         self.gui = gui
+        self.exit_now = False
         #if self.gui is not None:
         #    self.gui.set_sliders_default(self.x_offset,self.y_offset,self.w,self.h)
 
@@ -344,11 +345,11 @@ class OCR:
                 self.log.flush()
         return read_primes, filtered
 
-    def main(self, thread=None):
+    def main(self):
         self.init()
         old_read_primes = []
         old_filtered = 0
-        while thread is None or not thread.exit_now:
+        while not self.exit_now:
             start = datetime.now()
             old_read_primes, old_filtered = self.read_screen(old_read_primes, old_filtered)
             end = datetime.now()
