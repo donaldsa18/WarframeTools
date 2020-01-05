@@ -180,13 +180,16 @@ class OCR:
         dataBitMap = win32ui.CreateBitmap()
         dataBitMap.CreateCompatibleBitmap(dcObj, self.w, self.h)
 
+        # make sure values don't change while taking screenshot
+        w = self.w
+        h = self.h
         cDC.SelectObject(dataBitMap)
-        cDC.BitBlt((0, 0), (self.w, self.h), dcObj, (left, top), win32con.SRCCOPY)
+        cDC.BitBlt((0, 0), (w, h), dcObj, (left, top), win32con.SRCCOPY)
 
         # make numpy img
         bmpRGB = dataBitMap.GetBitmapBits(True)
         img = np.frombuffer(bmpRGB, dtype='uint8')
-        img.shape = (self.h, self.w, 4)
+        img.shape = (h, w, 4)
 
         # Free Resources
         dcObj.DeleteDC()

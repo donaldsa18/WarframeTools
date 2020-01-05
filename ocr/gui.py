@@ -26,7 +26,7 @@ class Window(QWidget):
         warframe_height = 1080
         warframe_width = 1920
 
-        self.table = QTableWidget(6, 3)
+        self.table = QTableWidget(7, 3)
         self.table.setHorizontalHeaderLabels(['Name', 'Plat', 'Ducats'])
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         header = self.table.horizontalHeader()
@@ -106,7 +106,7 @@ class Window(QWidget):
         update_box = QGroupBox("Updates")
         update_box.setLayout(update_layout)
         update_box.setFixedWidth(190)
-        update_box.setFixedHeight(212)
+        update_box.setFixedHeight(243)
         i = 4
         for slider_name in self.slider_names:
             grid.addWidget(slider_labels[slider_name], i, 0)
@@ -117,7 +117,7 @@ class Window(QWidget):
         group_box = QGroupBox("Preferences")
         group_box.setLayout(grid)
         group_box.setFixedWidth(190)
-        group_box.setFixedHeight(212)
+        group_box.setFixedHeight(243)
 
         bot_layout.addWidget(self.table)
         bot_layout.addWidget(group_box)
@@ -125,7 +125,7 @@ class Window(QWidget):
 
         bot_box = QGroupBox()
         bot_box.setLayout(bot_layout)
-        bot_box.setFixedHeight(257)
+        bot_box.setFixedHeight(287)
 
         self.crop_img = QGroupBox("Crop")
         crop_img_layout = QVBoxLayout()
@@ -148,6 +148,8 @@ class Window(QWidget):
         self.setWindowTitle('Warframe Prime Helper')
 
         self.ocr = None
+        self.old_screenshot_shape = 0
+        self.old_filtered_shape = 0
 
         self.show()
         self.setFixedSize(self.layout.sizeHint())
@@ -239,17 +241,37 @@ class Window(QWidget):
         self.table.selectRow(self.max_row)
 
     def update_images(self, screenshot, filtered):
+        screenshot_shape = None
+        filtered_shape = None
         if not self.hide_crop_check_box.isChecked():
+            screenshot_shape = screenshot.shape
             h, w, ch = screenshot.shape
             bytes_per_line = ch * w
             screenshot_pix = QPixmap(QImage(screenshot, w, h, bytes_per_line, QImage.Format_RGB888))
+            if w != 908 or h != 70:
+                screenshot_pix = screenshot_pix.scaled(908, 70, Qt.KeepAspectRatio)
             self.image_label.setPixmap(screenshot_pix)
 
         if not self.hide_filter_check_box.isChecked():
+            filtered_shape = filtered.shape
             h, w = filtered.shape
             bytes_per_line = w
             filtered_pix = QPixmap(QImage(filtered, w, h, bytes_per_line, QImage.Format_Grayscale8))
+            if w != 908 or h != 70:
+                filtered_pix = filtered_pix.scaled(908, 70, Qt.KeepAspectRatio)
             self.image_label2.setPixmap(filtered_pix)
+        self.update_window_size(screenshot_shape, filtered_shape)
+
+    def update_window_size(self, screenshot_shape, filtered_shape):
+        should_update = False
+        if screenshot_shape is not None and screenshot_shape == self.old_screenshot_shape:
+            self.old_screenshot_shape = screenshot_shape
+            should_update = True
+        if filtered_shape is not None and filtered_shape == self.old_filtered_shape:
+            self.old_filtered_shape = filtered_shape
+            should_update = True
+        if should_update:
+            self.setFixedSize(self.layout.sizeHint())
 
 
 class OCRThread(QThread):
