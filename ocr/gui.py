@@ -55,10 +55,10 @@ class Window(QWidget):
         mission_header.resizeSection(3, 60)
         self.mission_table.setFixedWidth(405)
 
-        self.slider_names = ['x', 'y', 'w', 'h', 'v1', 'v2', 'Screencap', 'Fissure']
+        self.slider_names = ['x', 'y', 'w', 'h', 'v1', 'v2', 'Screencap', 'Fissure', 'API Threads']
         self.sliders = {x: QSlider(Qt.Horizontal) for x in self.slider_names}
         slider_labels = {x: QLabel(x) for x in self.slider_names}
-        self.slider_default_values = {'x': 521, 'y': 400, 'w': 908, 'h': 70, 'v1': 197, 'v2': 180, 'Screencap': 1, 'Fissure': 30}
+        self.slider_default_values = {'x': 521, 'y': 400, 'w': 908, 'h': 70, 'v1': 197, 'v2': 180, 'Screencap': 1, 'Fissure': 30, 'API Threads':4}
         self.slider_values = {x: QLabel(str(self.slider_default_values[x])) for x in self.slider_names}
 
         self.sliders['x'].setMaximum(int(warframe_width / 2))
@@ -67,29 +67,27 @@ class Window(QWidget):
         self.sliders['h'].setMaximum(warframe_height)
         self.sliders['v1'].setMaximum(255)
         self.sliders['v2'].setMaximum(255)
-        for slider_name in self.slider_names:
-            self.sliders[slider_name].setMinimum(0)
-            self.sliders[slider_name].setSingleStep(1)
-            #self.sliders[slider_name].valueChanged.connect(self.slider_values[slider_name].setNum)
-            self.slider_values[slider_name].setFixedWidth(35)
-            self.sliders[slider_name].setValue(self.slider_default_values[slider_name])
-
         self.sliders['Screencap'].setMaximum(5)
         self.sliders['Screencap'].setMinimum(1)
         self.sliders['Fissure'].setMaximum(60)
         self.sliders['Fissure'].setMinimum(10)
-
+        self.sliders['API Threads'].setMaximum(10)
+        self.sliders['API Threads'].setMinimum(2)
+        for slider_name in self.slider_names:
+            if len(slider_name) <= 2:
+                self.sliders[slider_name].setMinimum(0)
+            self.sliders[slider_name].setSingleStep(1)
+            self.slider_values[slider_name].setFixedWidth(35)
+            self.sliders[slider_name].setValue(self.slider_default_values[slider_name])
 
         self.is_slider_max_set = False
 
         self.pref_grid = QGridLayout()
         self.pref_grid.setColumnStretch(3, 7)
-        #grid.setContentsMargins(7, 7, 7, 7)
 
         self.pause_button = QPushButton("Pause")
         self.pause_button.clicked.connect(self.toggle_button)
         self.is_paused = False
-        #self.pref_grid.addWidget(self.pause_button, 0, 0, 1, 3)
 
         self.plat_check_box = QCheckBox("Prefer platinum")
         self.plat_check_box.setChecked(True)
@@ -170,9 +168,9 @@ class Window(QWidget):
         settings_layout_1.addWidget(filter_box)
 
         rate_grid = QGridLayout()
-        rate_grid.setColumnStretch(3, 2)
+        rate_grid.setColumnStretch(3, 3)
         rate_grid.setContentsMargins(0, 0, 0, 0)
-        for i in range(2):
+        for i in range(3):
             slider_name = self.slider_names[i+6]
             rate_grid.addWidget(slider_labels[slider_name], i, 0)
             rate_grid.addWidget(self.slider_values[slider_name], i, 1)
@@ -501,6 +499,8 @@ class Window(QWidget):
             ocr.set_interval(val)
         if dim == 'Fissure':
             self.api.set_rate(val)
+        if dim == 'API Threads':
+            self.market_api.set_num_threads(val)
 
     def select_max(self):
         # TODO doesnt work

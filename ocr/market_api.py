@@ -15,6 +15,7 @@ class MarketReader:
         self.ducats = {}
         self.headers = {'Platform': self.platform, 'Region': self.region}
         self.primes = []
+        self.threads = 4
 
     def get_prime_items(self):
         if self.prime_items is None:
@@ -49,7 +50,7 @@ class MarketReader:
     def update_ducats(self):
         self.get_prime_items()
         self.ducats = {}
-        with ThreadPoolExecutor(max_workers=4) as ex:
+        with ThreadPoolExecutor(max_workers=self.threads) as ex:
             for prime in self.prime_items:
                 ex.submit(self.update_ducats_sub, prime['url_name'], prime['item_name'])
             ex.shutdown(wait=True)
@@ -101,7 +102,7 @@ class MarketReader:
     def update_prices(self):
         self.get_prime_items()
         self.primes = []
-        with ThreadPoolExecutor(max_workers=4) as ex:
+        with ThreadPoolExecutor(max_workers=self.threads) as ex:
             for prime in self.prime_items:
                 ex.submit(self.update_prices_sub, prime['url_name'], prime['item_name'])
             ex.shutdown(wait=True)
@@ -112,6 +113,9 @@ class MarketReader:
         if self.gui is not None:
             self.gui.finished_update_progress()
             self.gui.update_prices_time()
+
+    def set_num_threads(self,val):
+        self.threads = val
 
     def safe_cast(self, val, to_type, default=None):
         try:
