@@ -75,6 +75,7 @@ class OCR:
 
         self.gui = gui
         self.exit_now = False
+        self.move_to_top = True
         #if self.gui is not None:
         #    self.gui.set_sliders_default(self.x_offset,self.y_offset,self.w,self.h)
 
@@ -122,12 +123,13 @@ class OCR:
         top_windows.append((hwnd, win32gui.GetWindowText(hwnd)))
 
     def bring_to_front(self):
-        top_windows = []
-        win32gui.EnumWindows(self.window_enumeration_handler, top_windows)
-        for i in top_windows:
-            if self.title in i[1]:
-                win32gui.ShowWindow(i[0], 5)
-                win32gui.SetForegroundWindow(i[0])
+        if self.move_to_top:
+            top_windows = []
+            win32gui.EnumWindows(self.window_enumeration_handler, top_windows)
+            for i in top_windows:
+                if self.title in i[1]:
+                    win32gui.ShowWindow(i[0], 5)
+                    win32gui.SetForegroundWindow(i[0])
 
     def dict_match(self, text):
         words = text.split(" ")
@@ -161,6 +163,9 @@ class OCR:
 
     def set_interval(self, val):
         self.interval = val
+
+    def set_move_to_top(self, val):
+        self.move_to_top = val
 
     def screenshot(self):
         if self.skip_screenshot:

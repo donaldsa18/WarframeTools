@@ -55,10 +55,10 @@ class Window(QWidget):
         mission_header.resizeSection(3, 60)
         self.mission_table.setFixedWidth(405)
 
-        self.slider_names = ['x', 'y', 'w', 'h', 'v1', 'v2', 'Screencap', 'Fissure', 'API Threads']
+        self.slider_names = ['x', 'y', 'w', 'h', 'v1', 'v2', 'Screencap (s)', 'Fissure (s)', 'API Threads']
         self.sliders = {x: QSlider(Qt.Horizontal) for x in self.slider_names}
         slider_labels = {x: QLabel(x) for x in self.slider_names}
-        self.slider_default_values = {'x': 521, 'y': 400, 'w': 908, 'h': 70, 'v1': 197, 'v2': 180, 'Screencap': 1, 'Fissure': 30, 'API Threads':4}
+        self.slider_default_values = {'x': 521, 'y': 400, 'w': 908, 'h': 70, 'v1': 197, 'v2': 180, 'Screencap (s)': 1, 'Fissure (s)': 30, 'API Threads':4}
         self.slider_values = {x: QLabel(str(self.slider_default_values[x])) for x in self.slider_names}
 
         self.sliders['x'].setMaximum(int(warframe_width / 2))
@@ -67,10 +67,10 @@ class Window(QWidget):
         self.sliders['h'].setMaximum(warframe_height)
         self.sliders['v1'].setMaximum(255)
         self.sliders['v2'].setMaximum(255)
-        self.sliders['Screencap'].setMaximum(5)
-        self.sliders['Screencap'].setMinimum(1)
-        self.sliders['Fissure'].setMaximum(60)
-        self.sliders['Fissure'].setMinimum(10)
+        self.sliders['Screencap (s)'].setMaximum(5)
+        self.sliders['Screencap (s)'].setMinimum(1)
+        self.sliders['Fissure (s)'].setMaximum(60)
+        self.sliders['Fissure (s)'].setMinimum(10)
         self.sliders['API Threads'].setMaximum(10)
         self.sliders['API Threads'].setMinimum(2)
         for slider_name in self.slider_names:
@@ -163,9 +163,23 @@ class Window(QWidget):
         filter_box = QGroupBox("Filter Parameters")
         filter_box.setLayout(filter_grid)
 
+        self.move_to_top_check_box = QCheckBox("Bring to front")
+        self.move_to_top_check_box.setChecked(True)
+        self.move_to_top_check_box.stateChanged.connect(self.toggle_move_to_top)
+
+        other_layout = QVBoxLayout()
+        other_layout.setAlignment(Qt.AlignTop)
+        other_layout.setContentsMargins(0, 0, 0, 0)
+        other_layout.addWidget(self.move_to_top_check_box)
+        other_layout.addWidget(self.pause_button)
+
+        other_box = QGroupBox("Other")
+        other_box.setLayout(other_layout)
+
         settings_layout_1 = QVBoxLayout()
         settings_layout_1.addWidget(crop_box)
         settings_layout_1.addWidget(filter_box)
+        settings_layout_1.addWidget(other_box)
 
         rate_grid = QGridLayout()
         rate_grid.setColumnStretch(3, 3)
@@ -182,7 +196,7 @@ class Window(QWidget):
         settings_layout_2 = QVBoxLayout()
         settings_layout_2.addWidget(update_box)
         settings_layout_2.addWidget(rate_box)
-        settings_layout_2.addWidget(self.pause_button)
+        #settings_layout_2.addWidget(self.pause_button)
 
         hide_layout = QVBoxLayout()
         hide_layout.setAlignment(Qt.AlignTop)
@@ -365,6 +379,9 @@ class Window(QWidget):
             self.mission_table.show()
         self.setFixedSize(self.layout.sizeHint())
 
+    def toggle_move_to_top(self, checkbox):
+        self.ocr.set_move_to_top(self.move_to_top_check_box.isChecked())
+
     def toggle_cropped_img(self, checkbox):
         if self.hide_crop_check_box.isChecked():
             self.crop_img.hide()
@@ -495,9 +512,9 @@ class Window(QWidget):
             ocr.set_v1(val)
         if dim == 'v2':
             ocr.set_v2(val)
-        if dim == 'Screencap':
+        if dim == 'Screencap (s)':
             ocr.set_interval(val)
-        if dim == 'Fissure':
+        if dim == 'Fissure (s)':
             self.api.set_rate(val)
         if dim == 'API Threads':
             self.market_api.set_num_threads(val)
