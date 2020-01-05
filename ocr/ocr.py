@@ -159,6 +159,9 @@ class OCR:
     def set_v2(self, val):
         self.upper[0] = val
 
+    def set_interval(self, val):
+        self.interval = val
+
     def screenshot(self):
         if self.skip_screenshot:
             return cv2.imread(self.screenshot_name)

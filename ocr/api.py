@@ -22,6 +22,10 @@ class APIReader:
         self.scheduler = sched.scheduler(time.time, time.sleep)
         self.exit_now = False
         self.next_event = None
+        self.rate = 30
+
+    def set_rate(self, val):
+        self.rate = val
 
     def run(self):
         self.update()
@@ -51,7 +55,7 @@ class APIReader:
                 print('{} {} {} {}'.format(modifier, name, node_type, expire))
         cur_time = time.time()
         if not self.exit_now:
-            self.next_event = self.scheduler.enterabs(cur_time+30, 1, self.update)
+            self.next_event = self.scheduler.enterabs(cur_time+self.rate, 1, self.update)
         if need_update:
             self.update_table()
 

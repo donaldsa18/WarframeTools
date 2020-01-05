@@ -9,10 +9,8 @@ from api import APIReader
 from market_api import MarketReader
 import time
 import threading
-import sys
-import traceback
-import inspect
-from concurrent.futures import ThreadPoolExecutor
+from threading import Lock
+from datetime import datetime
 
 class Window(QWidget):
     def __init__(self):
@@ -302,6 +300,13 @@ class Window(QWidget):
         self.ducats_thread = None
         self.prices_thread = None
 
+        self.prices_progress_lock = Lock()
+        self.ducats_progress_lock = Lock()
+
+        self.num_primes = 100
+
+        self.api = None
+
     def update_prices(self):
         self.prices_thread = threading.Thread(name="prices_thread", target=self.market_api.update_prices)
         self.prices_thread.start()
@@ -321,25 +326,32 @@ class Window(QWidget):
         self.latest_item_value.setText(latest)
         self.update_prices_progress.setMaximum(num)
         self.update_ducats_progress.setMaximum(num)
+        self.num_primes = num
+
+    def get_datetime(self):
+        return datetime.now().strftime("%b %d %Y %H:%M:%S")
 
     def update_ducats_time(self):
-        datetime = QDateTime.currentDateTime()
-        self.last_updated_ducats_value.setText(datetime.toString("%b %d %Y %H:%M:%S"))
-        self.update_ducats_progress.setMaximum(100)
-        self.update_ducats_progress.setValue(100)
+        self.last_updated_ducats_value.setText(self.get_datetime())
+        self.ducats_progress_lock.acquire()
+        self.update_ducats_progress.setValue(self.num_primes)
+        self.ducats_progress_lock.release()
 
     def update_prices_time(self):
-        datetime = QDateTime.currentDateTime()
-        self.last_updated_prices_value.setText(datetime.toString("%b %d %Y %H:%M:%S"))
-        self.update_prices_progress.setMaximum(100)
-        self.update_prices_progress.setValue(100)
+        self.last_updated_prices_value.setText(self.get_datetime())
+        self.prices_progress_lock.acquire()
+        self.update_prices_progress.setValue(self.num_primes)
+        self.prices_progress_lock.release()
 
-    def set_update_prices_progress(self, val, max_val):
-        self.update_prices_progress.setValue(val)
+    def set_update_prices_progress(self, val):
+        if self.prices_progress_lock.acquire():
+            self.update_prices_progress.setValue(val)
+            self.prices_progress_lock.release()
 
-    def set_update_ducats_progress(self, val, max_val):
-
-        self.update_ducats_progress.setValue(val)
+    def set_update_ducats_progress(self, val):
+        if self.ducats_progress_lock.acquire():
+            self.update_ducats_progress.setValue(val)
+            self.ducats_progress_lock.release()
 
     def finished_update_progress(self):
         self.update_prices_button.setEnabled(True)
@@ -433,8 +445,13 @@ class Window(QWidget):
 
     def update_mission_table_time(self):
         cur_time = time.time()
+        needs_update = False
         for i in range(len(self.missions)):
             self.mission_table.setItem(i, 3, QTableWidgetItem(self.get_duration_str(self.missions[i][3]-cur_time)))
+            if self.missions[i][3]-cur_time < 0:
+                needs_update = True
+        if needs_update:
+            self.api.filter_expired_missions()
 
     def update_mission_table_hidden(self):
         for i in range(len(self.missions)):
@@ -443,7 +460,7 @@ class Window(QWidget):
             else:
                 self.mission_table.setRowHidden(i, False)
 
-    def get_duration_str(self,duration):
+    def get_duration_str(self, duration):
         m, s = divmod(int(duration), 60)
         h, m = divmod(m, 60)
         return '{:d}:{:02d}:{:02d}'.format(h, m, s)
@@ -453,6 +470,9 @@ class Window(QWidget):
             self.sliders[slider_name].valueChanged.connect(partial(self.set_ocr_crop, ocr, slider_name))
         self.ocr = ocr
         self.market_api = MarketReader(ocr=self.ocr, gui=self)
+
+    def set_api(self, wf_api):
+        self.api = wf_api
 
     def set_hidden_relic(self, relic, checkbox):
         if self.hide_relics[relic].isChecked():
@@ -477,6 +497,10 @@ class Window(QWidget):
             ocr.set_v1(val)
         if dim == 'v2':
             ocr.set_v2(val)
+        if dim == 'Screencap':
+            ocr.set_interval(val)
+        if dim == 'Fissure':
+            self.api.set_rate(val)
 
     def select_max(self):
         # TODO doesnt work
@@ -568,6 +592,7 @@ if __name__ == "__main__":
 
     api = APIReader(gui=window)
     api_thread = APIThread(window)
+    window.set_api(api)
     api_thread.start()
 
     market_api = window.market_api
