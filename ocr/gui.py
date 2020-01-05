@@ -5,7 +5,9 @@ from PyQt5.QtCore import Qt, QThread
 import qdarkstyle
 from functools import partial
 from ocr import OCR
-
+from api import APIReader
+import time
+import sched
 
 class Window(QWidget):
     def __init__(self):
@@ -33,6 +35,19 @@ class Window(QWidget):
         header.setSectionResizeMode(0, QHeaderView.Stretch)
         header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
+
+        self.mission_table = QTableWidget(30, 4)
+        self.mission_table.setHorizontalHeaderLabels(['Relic', 'Mission', 'Type', 'Time Left'])
+        self.mission_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+
+        mission_header = self.mission_table.horizontalHeader()
+
+        for i in range(4):
+            mission_header.setSectionResizeMode(i, QHeaderView.Interactive)
+        mission_header.resizeSection(0, 55)
+        mission_header.resizeSection(1, 120)
+        mission_header.resizeSection(2, 70)
+        mission_header.resizeSection(3, 60)
 
         self.slider_names = ['x', 'y', 'w', 'h', 'v1', 'v2']
         self.sliders = {x: QSlider(Qt.Horizontal) for x in self.slider_names}
@@ -120,8 +135,9 @@ class Window(QWidget):
         group_box.setFixedHeight(243)
 
         bot_layout.addWidget(self.table)
+        bot_layout.addWidget(self.mission_table)
         bot_layout.addWidget(group_box)
-        bot_layout.addWidget(update_box)
+        #bot_layout.addWidget(update_box)
 
         bot_box = QGroupBox()
         bot_box.setLayout(bot_layout)
@@ -150,6 +166,8 @@ class Window(QWidget):
         self.ocr = None
         self.old_screenshot_shape = 0
         self.old_filtered_shape = 0
+
+        self.missions = []
 
         self.show()
         self.setFixedSize(self.layout.sizeHint())
@@ -195,6 +213,7 @@ class Window(QWidget):
         self.table.clearSelection()
         self.table.clearContents()
         self.filled_rows = 0
+        self.table.setRowCount(self.filled_rows)
 
     def is_plat_preferred(self):
         return self.plat_check_box.isChecked()
@@ -212,6 +231,28 @@ class Window(QWidget):
             self.max_row = self.filled_rows
 
         self.filled_rows = self.filled_rows + 1
+        self.table.setRowCount(self.filled_rows)
+
+    def update_mission_table(self, missions):
+        self.missions = list(missions)
+        cur_time = time.time()
+        for i in range(len(missions)):
+            for j in range(3):
+                self.mission_table.setItem(i, j, QTableWidgetItem(str(self.missions[i][j])))
+
+            self.mission_table.setItem(i, 3, QTableWidgetItem(self.get_duration_str(self.missions[i][3]-cur_time)))
+
+        self.mission_table.setRowCount(len(self.missions)-1)
+
+    def update_mission_table_time(self):
+        cur_time = time.time()
+        for i in range(len(self.missions)):
+            self.mission_table.setItem(i, 3, QTableWidgetItem(self.get_duration_str(self.missions[i][3]-cur_time)))
+
+    def get_duration_str(self,duration):
+        m, s = divmod(int(duration), 60)
+        h, m = divmod(m, 60)
+        return '{:d}:{:02d}:{:02d}'.format(h, m, s)
 
     def set_ocr_connection(self, ocr):
         for slider_name in self.slider_names:
@@ -288,12 +329,48 @@ class OCRThread(QThread):
         self.ocr.main(thread=self)
 
 
+class APIThread(QThread):
+    def __init__(self, gui):
+        QThread.__init__(self)
+        self.api = APIReader(gui=gui)
+
+    def __del__(self):
+        self.wait()
+
+    def run(self):
+        self.api.run()
+
+class TableThread(QThread):
+    def __init__(self, gui):
+        QThread.__init__(self)
+        self.scheduler = sched.scheduler(time.time, time.sleep)
+        self.gui = gui
+
+    def __del__(self):
+        self.wait()
+
+    def run(self):
+        self.scheduler.enter(1, 1, self.update)
+        self.scheduler.run()
+
+    def update(self):
+        self.scheduler.enter(1, 1, self.update)
+        self.gui.update_mission_table_time()
+
 app = QApplication([])
 window = Window()
 app.setWindowIcon(QIcon(window.icon_path))
 dark_stylesheet = qdarkstyle.load_stylesheet_pyqt5()
 app.setStyleSheet(dark_stylesheet)
+
 thread = OCRThread(window)
 window.set_ocr_connection(thread.ocr)
 thread.start()
+
+api_thread = APIThread(window)
+api_thread.start()
+
+table_thread = TableThread(window)
+table_thread.start()
+
 app.exec_()

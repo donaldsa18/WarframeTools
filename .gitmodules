@@ -1,0 +1,3 @@
+[submodule "warframe-worldstate-data"]
+	path = warframe-worldstate-data
+	url = https://github.com/WFCD/warframe-worldstate-data.git
