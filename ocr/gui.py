@@ -1,5 +1,5 @@
 from PyQt5.QtWidgets import QApplication, QTableWidget, QWidget, QVBoxLayout, QLabel, QAbstractItemView, QHBoxLayout, \
-    QSlider, QGridLayout, QGroupBox, QCheckBox, QHeaderView, QPushButton, QProgressBar, QTableWidgetItem
+    QSlider, QGridLayout, QGroupBox, QCheckBox, QHeaderView, QPushButton, QProgressBar, QTableWidgetItem, QDialog
 from PyQt5.QtGui import QIcon, QPixmap, QImage
 from PyQt5.QtCore import Qt, QThread
 import qdarkstyle
@@ -9,13 +9,14 @@ from api import APIReader
 import time
 import sched
 
+
 class Window(QWidget):
     def __init__(self):
         super(Window, self).__init__()
 
         self.icon_path = 'warframe.ico'
 
-        self.layout = QVBoxLayout()
+        #self.layout = QVBoxLayout()
 
         self.image_label = QLabel()
         image = QPixmap('temp\\crop_27.bmp')
@@ -29,7 +30,7 @@ class Window(QWidget):
         warframe_width = 1920
 
         self.table = QTableWidget(7, 3)
-        self.table.setHorizontalHeaderLabels(['Name', 'Plat', 'Ducats'])
+        self.table.setHorizontalHeaderLabels(['Prime Part', 'Plat', 'Ducats'])
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.Stretch)
@@ -45,9 +46,10 @@ class Window(QWidget):
         for i in range(4):
             mission_header.setSectionResizeMode(i, QHeaderView.Interactive)
         mission_header.resizeSection(0, 55)
-        mission_header.resizeSection(1, 120)
-        mission_header.resizeSection(2, 70)
+        mission_header.resizeSection(1, 150)
+        mission_header.resizeSection(2, 90)
         mission_header.resizeSection(3, 60)
+        self.mission_table.setFixedWidth(405)
 
         self.slider_names = ['x', 'y', 'w', 'h', 'v1', 'v2']
         self.sliders = {x: QSlider(Qt.Horizontal) for x in self.slider_names}
@@ -71,28 +73,28 @@ class Window(QWidget):
 
         self.is_slider_max_set = False
 
-        grid = QGridLayout()
-        grid.setColumnStretch(3, 7)
+        self.pref_grid = QGridLayout()
+        self.pref_grid.setColumnStretch(3, 7)
         #grid.setContentsMargins(7, 7, 7, 7)
 
         self.pause_button = QPushButton("Pause")
         self.pause_button.clicked.connect(self.toggle_button)
         self.is_paused = False
-        grid.addWidget(self.pause_button, 0, 0, 1, 3)
+        self.pref_grid.addWidget(self.pause_button, 0, 0, 1, 3)
 
         self.plat_check_box = QCheckBox("Prefer platinum")
         self.plat_check_box.setChecked(True)
-        grid.addWidget(self.plat_check_box, 1, 0, 1, 3)
+        self.pref_grid.addWidget(self.plat_check_box, 1, 0, 1, 3)
 
         self.hide_crop_check_box = QCheckBox("Hide Crop")
         self.hide_crop_check_box.setChecked(False)
         self.hide_crop_check_box.stateChanged.connect(self.toggle_cropped_img)
-        grid.addWidget(self.hide_crop_check_box, 2, 0, 1, 3)
+        self.pref_grid.addWidget(self.hide_crop_check_box, 2, 0, 1, 3)
 
         self.hide_filter_check_box = QCheckBox("Hide Filtered")
         self.hide_filter_check_box.setChecked(False)
         self.hide_filter_check_box.stateChanged.connect(self.toggle_filtered_img)
-        grid.addWidget(self.hide_filter_check_box, 2, 2, 1, 3)
+        self.pref_grid.addWidget(self.hide_filter_check_box, 2, 2, 1, 3)
 
         update_layout = QGridLayout()
         update_layout.setColumnStretch(4, 2)
@@ -124,19 +126,19 @@ class Window(QWidget):
         update_box.setFixedHeight(243)
         i = 4
         for slider_name in self.slider_names:
-            grid.addWidget(slider_labels[slider_name], i, 0)
-            grid.addWidget(self.slider_values[slider_name], i, 1)
-            grid.addWidget(self.sliders[slider_name], i, 2)
+            self.pref_grid.addWidget(slider_labels[slider_name], i, 0)
+            self.pref_grid.addWidget(self.slider_values[slider_name], i, 1)
+            self.pref_grid.addWidget(self.sliders[slider_name], i, 2)
             i = i + 1
 
-        group_box = QGroupBox("Preferences")
-        group_box.setLayout(grid)
-        group_box.setFixedWidth(190)
-        group_box.setFixedHeight(243)
+        self.pref_box = QGroupBox("Preferences")
+        self.pref_box.setLayout(self.pref_grid)
+        self.pref_box.setFixedWidth(190)
+        self.pref_box.setFixedHeight(243)
 
         bot_layout.addWidget(self.table)
         bot_layout.addWidget(self.mission_table)
-        bot_layout.addWidget(group_box)
+        #bot_layout.addWidget(self.pref_box)
         #bot_layout.addWidget(update_box)
 
         bot_box = QGroupBox()
@@ -152,6 +154,22 @@ class Window(QWidget):
         filter_img_layout = QVBoxLayout()
         filter_img_layout.addWidget(self.image_label2)
         self.filter_img.setLayout(filter_img_layout)
+
+        settings_button = QPushButton("\u2699")
+        settings_button.setStyleSheet("background-color: rgba(0, 0, 0, 255); font-size: 23px;")
+        settings_button.clicked.connect(self.show_preferences)
+        settings_button.setFixedWidth(30)
+        settings_button.setFixedHeight(30)
+        self.layout = QVBoxLayout()
+        self.layout.setAlignment(Qt.AlignTop)
+        self.layout.addSpacing(-14)
+
+        settings_button_hb = QHBoxLayout()
+        settings_button_hb.setAlignment(Qt.AlignRight)
+        settings_button_hb.addWidget(settings_button)
+        settings_button_hb.addSpacing(-13)
+
+        self.layout.addLayout(settings_button_hb)
 
         self.layout.addWidget(self.crop_img)
         self.layout.addWidget(self.filter_img)
@@ -169,8 +187,16 @@ class Window(QWidget):
 
         self.missions = []
 
+        self.dialog = QDialog()
+        self.dialog.setWindowTitle("Preferences")
+        self.dialog.setWindowModality(Qt.ApplicationModal)
+        self.dialog.setLayout(self.pref_grid)
+
         self.show()
         self.setFixedSize(self.layout.sizeHint())
+
+    def show_preferences(self):
+        self.dialog.exec_()
 
     def toggle_cropped_img(self, checkbox):
         if self.hide_crop_check_box.isChecked():
