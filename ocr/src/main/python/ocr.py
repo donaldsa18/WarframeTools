@@ -25,7 +25,7 @@ from optparse import OptionParser
 class OCR:
     def __init__(self, debug=None, gui=None):
         self.window_name = "Warframe"
-        self.screenshot_name = 'screenshot.bmp'
+        self.screenshot_name = 'resources\\screenshot.bmp'
 
         self.title = "Warframe Prime Helper"
 
@@ -249,7 +249,8 @@ class OCR:
 
         if config:
             command += shlex.split(config)
-        proc = subprocess.Popen(command, stderr=subprocess.PIPE)
+        CREATE_NO_WINDOW = 0x08000000
+        proc = subprocess.Popen(command, stderr=subprocess.PIPE, creationflags=CREATE_NO_WINDOW)
         return proc.wait(), proc.stderr.read()
 
     def read_box(self, crop, filtered, read_primes, text, table, old_read_primes):

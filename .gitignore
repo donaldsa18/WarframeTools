@@ -2,12 +2,14 @@
 *.csv
 *.log
 ocr/screenshot.bmp
+ocr/resources/screenshot.bmp
 ocr/screenshots/
 ocr/temp/
 ocr/.idea
 ocr/__pycache__
 ocr/target
 ocr/src/main/python/__pycache__
+ocr/src/main/python/*.pyo
 ocr/src/main/resources
 env/
 env36/
