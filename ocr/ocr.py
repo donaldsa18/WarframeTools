@@ -20,6 +20,9 @@ import subprocess
 import shlex
 from concurrent.futures import ThreadPoolExecutor
 from optparse import OptionParser
+from tesserocr import PyTessBaseAPI
+from PIL import Image
+import queue
 
 
 class OCR:
@@ -73,29 +76,16 @@ class OCR:
         self.regex_alphabet = re.compile('[^a-zA-Z\s]')
 
         self.datetime_format = "%Y-%m-%d %I.%M.%S%p"
-        self.tesseract_cmd = 'tesseract\\x64\\tesseract.exe'
         #os.environ['TESSDATA_PREFIX'] = 'tesseract\\tessdata'
-        #self.tesseract_cmd = 'C:\\Program Files (x86)\\Tesseract-OCR\\tesseract.exe'
-        #os.environ['TESSDATA_PREFIX'] = 'C:\\Program Files (x86)\\Tesseract-OCR\\'
-        self.my_env = None
-
 
         self.gui = gui
         self.exit_now = False
         self.move_to_top = True
 
         self.diff_threshold = 1
-        #if self.gui is not None:
-        #    self.gui.set_sliders_default(self.x_offset,self.y_offset,self.w,self.h)
 
-    def use_tesseract4(self, val):
-        self.my_env = os.environ.copy()
-        if val:
-            self.tesseract_cmd = 'tesseract\\x64\\tesseract.exe'
-            self.my_env['TESSDATA_PREFIX'] = 'tesseract\\tessdata'
-        else:
-            self.tesseract_cmd = 'C:\\Program Files (x86)\\Tesseract-OCR\\tesseract.exe'
-            self.my_env['TESSDATA_PREFIX'] = 'C:\\Program Files (x86)\\Tesseract-OCR\\'
+        self.api = queue.Queue()
+        self.ex = None
 
     def safe_cast(self, val, to_type, default=None):
         try:
@@ -131,16 +121,15 @@ class OCR:
             os.system('cls')
             os.system('TITLE {}'.format(self.title))
 
-        self.use_tesseract4(True)
         if self.skip_screenshot is None:
             parser = OptionParser()
             parser.add_option("-d", "--debug", action="store_true", dest="debug", default=False,
                               help="uses the current screenshot for debug purposes")
-            parser.add_option("-t", "--tesseract4", action="store_true", dest="tesseract", default=False,
-                              help="use the new Tesseract OCR 4 beta engine")
             (options, args) = parser.parse_args()
             self.skip_screenshot = options.debug
-            self.use_tesseract4(options.tesseract)
+        #for i in range(len(self.crop_list)):
+        #    self.api.put(PyTessBaseAPI())
+        self.ex = ThreadPoolExecutor(max_workers=(len(self.crop_list)+3))
 
     def window_enumeration_handler(self, hwnd, top_windows):
         top_windows.append((hwnd, win32gui.GetWindowText(hwnd)))
@@ -254,54 +243,22 @@ class OCR:
     def sanitize(self, input_str):
         return self.regex_alphabet.sub('', input_str)
 
-    def run_tesseract(self, input_filename, output_filename_base, lang=None, boxes=False, config=None):
-        '''
-        runs the command:
-            `tesseract_cmd` `input_filename` `output_filename_base`
-
-        returns the exit status of tesseract, as well as tesseract's stderr output
-
-        '''
-        command = [self.tesseract_cmd, input_filename, output_filename_base]
-
-        if lang is not None:
-            command += ['-l', lang]
-
-        if boxes:
-            command += ['batch.nochop', 'makebox']
-
-        if config:
-            command += shlex.split(config)
-        CREATE_NO_WINDOW = 0x08000000
-        proc = subprocess.Popen(command, stderr=subprocess.PIPE, creationflags=CREATE_NO_WINDOW, env=self.my_env)
-        return proc.wait(), proc.stderr.read()
-
-    def read_box(self, crop, filtered, read_primes, text, table, old_read_primes):
-        input_name = 'temp\\crop_{}.bmp'.format(crop[0] + crop[1])
-        output_name = 'temp\\tessout_{}'.format(crop[0] + crop[1])
-        cv2.imwrite(input_name, filtered[crop[1]:crop[3], crop[0]:crop[2]])
-
-        status, e = self.run_tesseract(input_name, output_name)
+    def read_box(self, crop, filtered, read_primes, text, table, old_read_primes, num):
         cur_time = datetime.now().strftime(self.datetime_format)
+        #print("reading box")
+        api = None
+        try:
+            api = self.api.get(block=False)
+            #print("reading box")
+        except queue.Empty:
+            api = PyTessBaseAPI()
 
-        if status:
-            self.log.write("{}: Failed to read image x={}\n".format(cur_time, crop[0]))
-            self.log.flush()
-            self.tesseract_log.write("{}: {}\n".format(cur_time, e.strip()))
-            if not self.skip_screenshot:
-                cv2.imwrite('screenshots/{}-error.bmp'.format(cur_time), filtered)
-            return
-        # else:
-        #    log.write("{}: Succeeded reading image x={}\n".format(cur_time, crop[0]))
-        #    log.flush()
+        api.SetImage(Image.fromarray(filtered[crop[1]:crop[3], crop[0]:crop[2]]))
+        ocr_output = api.GetUTF8Text()
+        self.api.put(api)
+        #self.log.write("{}: Succeeded reading image x={} num_api={}\n".format(cur_time, crop[0], self.api.qsize()))
+        #self.log.flush()
 
-        full_output_name = "{}.txt".format(output_name)
-        ocr_output = None
-        with open(full_output_name, 'r') as file:
-            ocr_output = file.read().strip()
-        os.remove(full_output_name)
-        # ocr_output = image_to_string(cropped_img)
-        #
         sanitized = self.sanitize(ocr_output)
         ocr_text = self.title_case(sanitized)
         #self.log.write("{}: ocr text={}\n".format(cur_time, ocr_text))
@@ -337,13 +294,8 @@ class OCR:
         filtered = self.filter_img(screenshot_img)
 
         if self.gui is not None:
-            #self.update_screen(screenshot_img, filtered)
-            try:
-                with ThreadPoolExecutor(len(self.crop_list)) as ex:
-                    ex.submit(self.gui.update_screenshot, screenshot_img)
-                    ex.submit(self.gui.update_filtered, filtered)
-            except KeyboardInterrupt:
-                return
+            self.ex.submit(self.gui.update_screenshot, screenshot_img)
+            self.ex.submit(self.gui.update_filtered, filtered)
         if self.image_identical(filtered, old_filtered):
             return old_read_primes.copy(), filtered
 
@@ -359,14 +311,17 @@ class OCR:
         text = {}
 
         # surround in try catch since threads don't receive keyboard interrupts
-        try:
-            with ThreadPoolExecutor(max_workers=len(self.crop_list)) as ex:
-                for crop in self.crop_list:
-                    ex.submit(self.read_box, crop, filtered, read_primes, text, table, old_read_primes)
-        except KeyboardInterrupt:
-            return
+        i = 0
+        for crop in self.crop_list:
+            #self.ex.submit(self.read_box, crop, filtered, read_primes, text, table, old_read_primes, i)
+            self.read_box(crop, filtered, read_primes, text, table, old_read_primes, i)
+            i += 1
+
+        # use this to find slient crashes
+        # i = 0
         #for crop in self.crop_list:
-        #    self.read_box(crop, filtered, read_primes, text, table, old_read_primes)
+        #    self.read_box(crop, filtered, read_primes, text, table, old_read_primes, i)
+        #    i += 1
         # read_primes.sort()
 
         if len(read_primes) == 0 and len(old_read_primes) != 0:

@@ -89,8 +89,6 @@ class Window(QWidget):
 
         self.prices_progress_lock = Lock()
         self.ducats_progress_lock = Lock()
-        self.table_lock = Lock()
-        #self.table_lock.acquire()
 
         self.ducats_thread = None
         self.prices_thread = None
@@ -105,7 +103,6 @@ class Window(QWidget):
         self.init_timer()
         self.show()
         self.setFixedSize(self.layout.sizeHint())
-        #self.table_lock.release()
 
     def init_timer(self):
         self.timer = QTimer()
@@ -604,13 +601,11 @@ class Window(QWidget):
         return self.plat_check_box.isChecked()
 
     def insert_table_row(self, row):
-        self.table_lock.acquire()
         for i in range(3):
             self.table.setItem(self.filled_rows, i, QTableWidgetItem(str(row[i])))
 
         self.filled_rows = self.filled_rows + 1
         #self.table.setRowCount(self.filled_rows)
-        self.table_lock.release()
 
     def update_mission_table(self, missions):
         self.missions = list(missions)
@@ -799,5 +794,5 @@ if __name__ == "__main__":
     app = App()
     app.run()
 # use to figure out if any threads are keeping python open
-# time.sleep(1)
-# print(str({t.ident: t.name for t in threading.enumerate()}))
+    #time.sleep(1)
+    #print(str({t.ident: t.name for t in threading.enumerate()}))

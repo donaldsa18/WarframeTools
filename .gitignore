@@ -1,6 +1,8 @@
 *.txt
 *.csv
 *.log
+*.log_old
+*.txt_old
 ocr/screenshot.bmp
 ocr/resources/screenshot.bmp
 ocr/screenshots/
