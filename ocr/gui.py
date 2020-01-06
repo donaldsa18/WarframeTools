@@ -90,6 +90,7 @@ class Window(QWidget):
         self.prices_progress_lock = Lock()
         self.ducats_progress_lock = Lock()
         self.table_lock = Lock()
+        #self.table_lock.acquire()
 
         self.ducats_thread = None
         self.prices_thread = None
@@ -104,6 +105,7 @@ class Window(QWidget):
         self.init_timer()
         self.show()
         self.setFixedSize(self.layout.sizeHint())
+        #self.table_lock.release()
 
     def init_timer(self):
         self.timer = QTimer()

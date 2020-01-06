@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QApplication, QTableWidget, QWidget, QVBoxLayout, QLabel, QAbstractItemView, QHBoxLayout, \
+from PyQt5.QtWidgets import QTableWidget, QWidget, QVBoxLayout, QLabel, QAbstractItemView, QHBoxLayout, \
     QSlider, QGridLayout, QGroupBox, QCheckBox, QHeaderView, QPushButton, QProgressBar, QTableWidgetItem, QDialog, QDialogButtonBox
 from PyQt5.QtGui import QIcon, QPixmap, QImage
 from PyQt5.QtCore import Qt, QThread, QTimer, QSettings
@@ -11,7 +11,6 @@ import time
 import threading
 from threading import Lock
 from datetime import datetime
-import sys
 from fbs_runtime.application_context.PyQt5 import ApplicationContext
 
 
@@ -91,6 +90,7 @@ class Window(QWidget):
         self.prices_progress_lock = Lock()
         self.ducats_progress_lock = Lock()
         self.table_lock = Lock()
+        #self.table_lock.acquire()
 
         self.ducats_thread = None
         self.prices_thread = None
@@ -105,6 +105,7 @@ class Window(QWidget):
         self.init_timer()
         self.show()
         self.setFixedSize(self.layout.sizeHint())
+        #self.table_lock.release()
 
     def init_timer(self):
         self.timer = QTimer()
@@ -201,15 +202,16 @@ class Window(QWidget):
         return button_box
 
     def load_settings(self):
-        slider_orig_values = {'x': 521, 'y': 400, 'w': 908, 'h': 70, 'v1': 197, 'v2': 180, 'Screencap (hz)': 1,
-                              'Fissure (s)': 30, 'API Threads': 4}
+        slider_orig_values = {'x': 521, 'y': 400, 'w': 908, 'h': 70, 'v1': 197, 'v2': 180, 'd': 4,
+                              'Screencap (hz)': 1, 'Fissure (s)': 30, 'API Threads': 4}
         self.slider_default_values = {}
         slider_default_max = {'x': self.warframe_width/2,
                               'y': self.warframe_height/2,
                               'w': self.warframe_width,
                               'h': self.warframe_height,
                               'v1': 255,
-                              'v2': 255}
+                              'v2': 255,
+                              'd': 40}
 
         for slider_name in self.slider_names:
             self.slider_default_values[slider_name] = self.settings.value(slider_name,defaultValue=slider_orig_values[slider_name])
@@ -229,7 +231,7 @@ class Window(QWidget):
         self.latest_item_value.setText(latest_item)
 
         for relic in self.relics:
-            checked = self.settings.value("hide_{}".format(relic),defaultValue=False,type=bool)
+            checked = self.settings.value("hide_{}".format(relic), defaultValue=False,type=bool)
             self.hide_relics[relic].setChecked(checked)
             if checked:
                 self.set_hidden_relic(relic)
@@ -320,7 +322,7 @@ class Window(QWidget):
         rate_grid.setColumnStretch(3, 3)
         rate_grid.setContentsMargins(0, 0, 0, 0)
         for i in range(3):
-            slider_name = self.slider_names[i + 6]
+            slider_name = self.slider_names[i + 7]
             rate_grid.addWidget(self.slider_labels[slider_name], i, 0)
             rate_grid.addWidget(self.slider_values[slider_name], i, 1)
             rate_grid.addWidget(self.sliders[slider_name], i, 2)
@@ -348,10 +350,10 @@ class Window(QWidget):
 
     def make_filter_box(self):
         filter_grid = QGridLayout()
-        filter_grid.setColumnStretch(3, 2)
+        filter_grid.setColumnStretch(3, 3)
         filter_grid.setAlignment(Qt.AlignTop)
         filter_grid.setContentsMargins(0, 0, 0, 0)
-        for i in range(2):
+        for i in range(3):
             slider_name = self.slider_names[i + 4]
             filter_grid.addWidget(self.slider_labels[slider_name], i, 0)
             filter_grid.addWidget(self.slider_values[slider_name], i, 1)
@@ -429,16 +431,19 @@ class Window(QWidget):
         return update_box
 
     def init_sliders(self):
-        self.slider_names = ['x', 'y', 'w', 'h', 'v1', 'v2', 'Screencap (hz)', 'Fissure (s)', 'API Threads']
+        self.slider_names = ['x', 'y', 'w', 'h', 'v1', 'v2', 'd', 'Screencap (hz)', 'Fissure (s)', 'API Threads']
         self.sliders = {x: QSlider(Qt.Horizontal) for x in self.slider_names}
         self.slider_labels = {x: QLabel(x) for x in self.slider_names}
         self.slider_default_values = {}
-        self.slider_orig_values = {'x': 521, 'y': 400, 'w': 908, 'h': 70, 'v1': 197, 'v2': 180, 'Screencap (hz)': 1,
-                                   'Fissure (s)': 30, 'API Threads': 4}
+        self.slider_orig_values = {'x': 521, 'y': 400, 'w': 908, 'h': 70, 'v1': 197, 'v2': 180, 'd': 4,
+                                   'Screencap (hz)': 1, 'Fissure (s)': 30, 'API Threads': 4}
         for slider_name in self.slider_names:
             self.slider_default_values[slider_name] = self.settings.value(slider_name, defaultValue=self.slider_orig_values[slider_name])
         self.slider_values = {x: QLabel(str(self.slider_default_values[x])) for x in self.slider_names}
         self.slider_values['Screencap (hz)'].setNum(self.slider_default_values['Screencap (hz)']/4)
+        self.slider_values['d'].setNum(self.slider_default_values['d'] / 4)
+
+        self.slider_labels['d'].setText('\u0394')
 
         self.sliders['x'].setMaximum(int(self.warframe_width / 2))
         self.sliders['y'].setMaximum(int(self.warframe_height / 2))
@@ -446,6 +451,7 @@ class Window(QWidget):
         self.sliders['h'].setMaximum(self.warframe_height)
         self.sliders['v1'].setMaximum(255)
         self.sliders['v2'].setMaximum(255)
+        self.sliders['d'].setMaximum(40)
         self.sliders['Screencap (hz)'].setMaximum(20)
         self.sliders['Screencap (hz)'].setMinimum(1)
         self.sliders['Fissure (s)'].setMaximum(60)
@@ -458,6 +464,7 @@ class Window(QWidget):
             self.sliders[slider_name].setSingleStep(1)
             self.slider_values[slider_name].setFixedWidth(35)
             self.sliders[slider_name].setValue(self.slider_default_values[slider_name])
+
     def init_tables(self):
         self.table = QTableWidget(7, 3)
         self.table.setHorizontalHeaderLabels(['Prime Part', 'Plat', 'Ducats'])
@@ -651,7 +658,7 @@ class Window(QWidget):
     def set_api(self, wf_api):
         self.api = wf_api
 
-    def set_hidden_relic(self, relic, checkbox):
+    def set_hidden_relic(self, relic):
         if self.hide_relics[relic].isChecked():
             self.hidden_relics.add(relic)
         else:
@@ -659,7 +666,7 @@ class Window(QWidget):
         self.update_mission_table_hidden()
 
     def set_ocr_crop(self, ocr, dim, val):
-        if dim == 'Screencap (hz)':
+        if dim == 'Screencap (hz)' or dim == 'd':
             val = val / 4
         self.slider_values[dim].setNum(val)
         if val < 0 or val > 100000 or val is None:
@@ -676,6 +683,8 @@ class Window(QWidget):
             ocr.set_v1(val)
         if dim == 'v2':
             ocr.set_v2(val)
+        if dim == 'd':
+            self.ocr.set_diff_threshold(val/4)
         if dim == 'Screencap (hz)':
             ocr.set_interval(1/val)
         if dim == 'Fissure (s)':

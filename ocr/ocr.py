@@ -73,8 +73,12 @@ class OCR:
         self.regex_alphabet = re.compile('[^a-zA-Z\s]')
 
         self.datetime_format = "%Y-%m-%d %I.%M.%S%p"
-        self.tesseract_cmd = 'C:\\Program Files (x86)\\Tesseract-OCR\\tesseract.exe'
-        #self.tesseract_cmd = 'tesseract.exe'
+        self.tesseract_cmd = 'tesseract\\x64\\tesseract.exe'
+        #os.environ['TESSDATA_PREFIX'] = 'tesseract\\tessdata'
+        #self.tesseract_cmd = 'C:\\Program Files (x86)\\Tesseract-OCR\\tesseract.exe'
+        #os.environ['TESSDATA_PREFIX'] = 'C:\\Program Files (x86)\\Tesseract-OCR\\'
+        self.my_env = None
+
 
         self.gui = gui
         self.exit_now = False
@@ -83,6 +87,15 @@ class OCR:
         self.diff_threshold = 1
         #if self.gui is not None:
         #    self.gui.set_sliders_default(self.x_offset,self.y_offset,self.w,self.h)
+
+    def use_tesseract4(self, val):
+        self.my_env = os.environ.copy()
+        if val:
+            self.tesseract_cmd = 'tesseract\\x64\\tesseract.exe'
+            self.my_env['TESSDATA_PREFIX'] = 'tesseract\\tessdata'
+        else:
+            self.tesseract_cmd = 'C:\\Program Files (x86)\\Tesseract-OCR\\tesseract.exe'
+            self.my_env['TESSDATA_PREFIX'] = 'C:\\Program Files (x86)\\Tesseract-OCR\\'
 
     def safe_cast(self, val, to_type, default=None):
         try:
@@ -117,12 +130,17 @@ class OCR:
         if self.gui is None:
             os.system('cls')
             os.system('TITLE {}'.format(self.title))
+
+        self.use_tesseract4(True)
         if self.skip_screenshot is None:
             parser = OptionParser()
             parser.add_option("-d", "--debug", action="store_true", dest="debug", default=False,
                               help="uses the current screenshot for debug purposes")
+            parser.add_option("-t", "--tesseract4", action="store_true", dest="tesseract", default=False,
+                              help="use the new Tesseract OCR 4 beta engine")
             (options, args) = parser.parse_args()
             self.skip_screenshot = options.debug
+            self.use_tesseract4(options.tesseract)
 
     def window_enumeration_handler(self, hwnd, top_windows):
         top_windows.append((hwnd, win32gui.GetWindowText(hwnd)))
@@ -255,7 +273,7 @@ class OCR:
         if config:
             command += shlex.split(config)
         CREATE_NO_WINDOW = 0x08000000
-        proc = subprocess.Popen(command, stderr=subprocess.PIPE, creationflags=CREATE_NO_WINDOW)
+        proc = subprocess.Popen(command, stderr=subprocess.PIPE, creationflags=CREATE_NO_WINDOW, env=self.my_env)
         return proc.wait(), proc.stderr.read()
 
     def read_box(self, crop, filtered, read_primes, text, table, old_read_primes):
