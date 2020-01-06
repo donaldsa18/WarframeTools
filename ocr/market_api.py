@@ -1,7 +1,6 @@
 import requests
 from concurrent.futures import ThreadPoolExecutor
-import concurrent.futures
-from threading import Lock
+
 
 class MarketReader:
     def __init__(self, gui=None, ocr=None):
@@ -16,6 +15,10 @@ class MarketReader:
         self.headers = {'Platform': self.platform, 'Region': self.region}
         self.primes = []
         self.threads = 4
+        self.price_csv = '..\\warframemarket\\allprice.csv'
+        self.ducats_csv = '..\\ducats\\ducats.csv'
+        self.primes_txt = '..\\ducats\\primes.txt'
+        self.prime_dict_list = None
 
     def get_prime_items(self):
         if self.prime_items is None:
@@ -27,8 +30,18 @@ class MarketReader:
                 print("Found {} primes".format(len(self.prime_items)))
             else:
                 self.gui.update_primes_info(len(self.prime_items), self.prime_items[-1]['item_name'])
-            if self.exit_now:
-                return
+            self.update_prime_dict()
+
+    def update_prime_dict(self):
+        prime_dict = set()
+        for prime_item in self.prime_items:
+            words = prime_item['item_name'].split(" ")
+            prime_dict = prime_dict.union(words)
+        self.prime_dict_list = list(prime_dict)
+        self.prime_dict_list.sort()
+        self.ocr.prime_dict = self.prime_dict_list
+        with open(self.primes_txt, 'w') as c:
+            c.write("\n".join(self.prime_dict_list))
 
     def update_ducats_sub(self, url_name, item_name):
         if self.exit_now:
@@ -58,9 +71,16 @@ class MarketReader:
         if self.ocr is not None:
             self.ocr.ducats = self.ducats
             self.ocr.ducats["Forma Blueprint"] = 0
+        self.update_ducats_csv()
         if self.gui is not None:
             self.gui.finished_update_progress()
             self.gui.update_ducats_time()
+
+    def update_ducats_csv(self):
+        with open(self.ducats_csv, 'w') as c:
+            c.write('"Item","Ducats"\n')
+            for prime in self.ducats:
+                c.write("{},{}\n".format(prime, self.ducats[prime]))
 
     def set_prices_progress(self):
         self.gui.update_prices_progress.setValue(len(self.primes))
@@ -106,13 +126,20 @@ class MarketReader:
             for prime in self.prime_items:
                 ex.submit(self.update_prices_sub, prime['url_name'], prime['item_name'])
             ex.shutdown(wait=True)
-
+        self.update_prices_csv()
         if self.ocr is not None:
             self.ocr.prices = {prime[0]: self.safe_cast(prime[1], int, 0) for prime in self.primes}
             self.ocr.prices["Forma Blueprint"] = 0
+        self.update_prices_csv()
         if self.gui is not None:
             self.gui.finished_update_progress()
             self.gui.update_prices_time()
+
+    def update_prices_csv(self):
+        with open(self.price_csv, 'w') as c:
+            c.write('"Item","Plat","Status"\n')
+            for prime in self.primes:
+                c.write("{},{},{}\n".format(prime[0],prime[1],prime[2]))
 
     def set_num_threads(self,val):
         self.threads = val

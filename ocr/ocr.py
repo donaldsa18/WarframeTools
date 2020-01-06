@@ -177,7 +177,7 @@ class OCR:
         while not hwnd:
             hwnd = win32gui.FindWindow(None, self.window_name)
             if not hwnd:
-                time.sleep(15)
+                return cv2.imread(self.screenshot_name)
         rect = win32gui.GetWindowRect(hwnd)
         x = rect[0]
         y = rect[1]
@@ -313,7 +313,7 @@ class OCR:
         if self.gui is not None:
             #self.update_screen(screenshot_img, filtered)
             try:
-                with ThreadPoolExecutor(max_workers=3) as ex:
+                with ThreadPoolExecutor(len(self.crop_list)) as ex:
                     ex.submit(self.gui.update_screenshot, screenshot_img)
                     ex.submit(self.gui.update_filtered, filtered)
             except KeyboardInterrupt:

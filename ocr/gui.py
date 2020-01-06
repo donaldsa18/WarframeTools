@@ -785,5 +785,5 @@ if __name__ == "__main__":
 
 
     # use to figure out if any threads are keeping python open
-    # time.sleep(1)
-    # print(str({t.ident: t.name for t in threading.enumerate()}))
+    time.sleep(1)
+    print(str({t.ident: t.name for t in threading.enumerate()}))
