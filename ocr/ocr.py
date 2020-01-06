@@ -79,6 +79,8 @@ class OCR:
         self.gui = gui
         self.exit_now = False
         self.move_to_top = True
+
+        self.diff_threshold = 1
         #if self.gui is not None:
         #    self.gui.set_sliders_default(self.x_offset,self.y_offset,self.w,self.h)
 
@@ -169,6 +171,9 @@ class OCR:
 
     def set_move_to_top(self, val):
         self.move_to_top = val
+
+    def set_diff_threshold(self, val):
+        self.diff_threshold = val
 
     def screenshot(self):
         if self.skip_screenshot:
@@ -305,7 +310,7 @@ class OCR:
     def image_identical(self, img1, img2):
         try:
             diff = cv2.subtract(img1, img2)
-            return diff.mean() < 1
+            return diff.mean() < self.diff_threshold
         except:
             return False
 
