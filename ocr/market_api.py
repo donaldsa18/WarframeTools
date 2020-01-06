@@ -1,6 +1,6 @@
 import requests
 from concurrent.futures import ThreadPoolExecutor
-
+import codecs
 
 class MarketReader:
     def __init__(self, gui=None, ocr=None):
@@ -40,7 +40,8 @@ class MarketReader:
         self.prime_dict_list = list(prime_dict)
         self.prime_dict_list.sort()
         self.ocr.prime_dict = self.prime_dict_list
-        with open(self.primes_txt, 'w') as c:
+        with open(self.primes_txt, 'w', encoding='utf16') as c:
+            c.write(str(codecs.BOM_UTF16_LE))
             c.write("\n".join(self.prime_dict_list))
 
     def update_ducats_sub(self, url_name, item_name):

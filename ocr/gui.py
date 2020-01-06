@@ -12,6 +12,7 @@ import threading
 from threading import Lock
 from datetime import datetime
 
+
 class Window(QWidget):
     def __init__(self):
         super(Window, self).__init__()
@@ -19,7 +20,10 @@ class Window(QWidget):
         self.icon_path = 'warframe.ico'
         self.app_title = 'Warframe Prime Helper'
         self.company_name = 'Warframe Tools'
-        self.settings = QSettings(self.company_name,self.app_title)
+
+
+
+        self.settings = QSettings(self.company_name, self.app_title)
         self.setWindowTitle(self.app_title)
 
         self.market_api = None
@@ -98,7 +102,6 @@ class Window(QWidget):
         self.init_dialog()
         self.set_layout()
         self.init_timer()
-
         self.show()
         self.setFixedSize(self.layout.sizeHint())
 
@@ -198,7 +201,7 @@ class Window(QWidget):
 
     def load_settings(self):
         slider_orig_values = {'x': 521, 'y': 400, 'w': 908, 'h': 70, 'v1': 197, 'v2': 180, 'Screencap (hz)': 1,
-                                   'Fissure (s)': 30, 'API Threads': 4}
+                              'Fissure (s)': 30, 'API Threads': 4}
         self.slider_default_values = {}
         slider_default_max = {'x': self.warframe_width/2,
                               'y': self.warframe_height/2,
@@ -232,25 +235,24 @@ class Window(QWidget):
 
         if self.settings.value("toggle_fissure_table", defaultValue=False, type=bool):
             self.hide_fissure_check_box.setChecked(True)
-            self.toggle_fissure_table(None)
+            self.toggle_fissure_table()
 
         if self.settings.value("toggle_move_to_top", defaultValue=False, type=bool):
             self.move_to_top_check_box.setChecked(True)
-            self.toggle_move_to_top(None)
+            self.toggle_move_to_top()
 
         if self.settings.value("toggle_cropped_img", defaultValue=False, type=bool):
             self.hide_crop_check_box.setChecked(True)
-            self.toggle_cropped_img(None)
+            self.toggle_cropped_img()
 
         if self.settings.value("toggle_filtered_img", defaultValue=False, type=bool):
             self.hide_filter_check_box.setChecked(True)
-            self.toggle_filtered_img(None)
+            self.toggle_filtered_img()
         self.dialog.close()
 
     def save_settings(self):
         for slider_name in self.slider_names:
             self.settings.setValue(slider_name, self.sliders[slider_name].value())
-            #self.settings.setValue("{}_max".format(slider_name), self.sliders[slider_name].maxValue())
 
         for relic in self.relics:
             self.settings.setValue("hide_{}".format(relic), self.hide_relics[relic].isChecked())
@@ -396,7 +398,7 @@ class Window(QWidget):
 
         last_updated_prices_label = QLabel("Prices Updated")
 
-        prices = self.settings.value("last_updated_prices_value",defaultValue="Never", type=str)
+        prices = self.settings.value("last_updated_prices_value", defaultValue="Never", type=str)
         ducats = self.settings.value("last_updated_ducats_value", defaultValue="Never", type=str)
         num_parts = self.settings.value("num_parts_value", defaultValue=350, type=str)
         latest_item = self.settings.value("latest_item_value", defaultValue="", type=str)
@@ -431,9 +433,9 @@ class Window(QWidget):
         self.slider_labels = {x: QLabel(x) for x in self.slider_names}
         self.slider_default_values = {}
         self.slider_orig_values = {'x': 521, 'y': 400, 'w': 908, 'h': 70, 'v1': 197, 'v2': 180, 'Screencap (hz)': 1,
-                                 'Fissure (s)': 30, 'API Threads': 4}
+                                   'Fissure (s)': 30, 'API Threads': 4}
         for slider_name in self.slider_names:
-            self.slider_default_values[slider_name] = self.settings.value(slider_name,defaultValue=self.slider_orig_values[slider_name])
+            self.slider_default_values[slider_name] = self.settings.value(slider_name, defaultValue=self.slider_orig_values[slider_name])
         self.slider_values = {x: QLabel(str(self.slider_default_values[x])) for x in self.slider_names}
 
         self.sliders['x'].setMaximum(int(self.warframe_width / 2))
@@ -539,24 +541,24 @@ class Window(QWidget):
         self.dialog.exec_()
         self.load_settings()
 
-    def toggle_fissure_table(self, checkbox):
+    def toggle_fissure_table(self):
         if self.hide_fissure_check_box.isChecked():
             self.mission_table.hide()
         else:
             self.mission_table.show()
         self.setFixedSize(self.layout.sizeHint())
 
-    def toggle_move_to_top(self, checkbox):
+    def toggle_move_to_top(self):
         self.ocr.set_move_to_top(self.move_to_top_check_box.isChecked())
 
-    def toggle_cropped_img(self, checkbox):
+    def toggle_cropped_img(self):
         if self.hide_crop_check_box.isChecked():
             self.crop_img.hide()
         else:
             self.crop_img.show()
         self.setFixedSize(self.layout.sizeHint())
 
-    def toggle_filtered_img(self, checkbox):
+    def toggle_filtered_img(self):
         if self.hide_filter_check_box.isChecked():
             self.filter_img.hide()
         else:
