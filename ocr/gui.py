@@ -101,8 +101,11 @@ class Window(QWidget):
         self.init_dialog()
         self.set_layout()
         self.init_timer()
+
         self.show()
-        self.setFixedSize(self.layout.sizeHint())
+
+        #measured correct values
+        self.setFixedSize(978, 617)
 
     def init_timer(self):
         self.timer = QTimer()
@@ -570,6 +573,7 @@ class Window(QWidget):
         else:
             self.filter_img.show()
         self.setFixedSize(self.layout.sizeHint())
+        #print("{}h,{}w".format(self.frameGeometry().height(),self.frameGeometry().width()))
 
     def set_sliders_range(self, x, y):
         max_values = {'x': int(x/2), 'y': int(y/2), 'w':x, 'h':y}
@@ -699,10 +703,9 @@ class Window(QWidget):
             h, w = filtered.shape
             bytes_per_line = w
             filtered_pix = QPixmap(QImage(filtered, w, h, bytes_per_line, QImage.Format_Grayscale8))
-            if w != 908 or h != 70:
-                filtered_pix = filtered_pix.scaled(908, 70, Qt.KeepAspectRatio)
+            filtered_pix = filtered_pix.scaled(908, 70, Qt.KeepAspectRatio)
             self.image_label2.setPixmap(filtered_pix)
-        self.update_window_size(None, filtered_shape)
+        #self.update_window_size(None, filtered_shape)
 
     def update_screenshot(self, screenshot):
         screenshot_shape = None
@@ -711,10 +714,9 @@ class Window(QWidget):
             h, w, ch = screenshot.shape
             bytes_per_line = ch * w
             screenshot_pix = QPixmap(QImage(screenshot, w, h, bytes_per_line, QImage.Format_RGB888))
-            if w != 908 or h != 70:
-                screenshot_pix = screenshot_pix.scaled(908, 70, Qt.KeepAspectRatio)
+            screenshot_pix = screenshot_pix.scaled(908, 70, Qt.KeepAspectRatio)
             self.image_label.setPixmap(screenshot_pix)
-        self.update_window_size(screenshot_shape, None)
+        #self.update_window_size(screenshot_shape, None)
 
     def update_window_size(self, screenshot_shape, filtered_shape):
         should_update = False

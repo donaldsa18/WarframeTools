@@ -44,6 +44,7 @@ class Window(QWidget):
         self.slider_values = None
         self.is_slider_max_set = False
 
+        self.bot_invisible_label = None
         #self.plat_check_box = QCheckBox("Prefer platinum")
         #self.plat_check_box.setChecked(True)
 
@@ -101,8 +102,13 @@ class Window(QWidget):
         self.init_dialog()
         self.set_layout()
         self.init_timer()
+
         self.show()
-        self.setFixedSize(self.layout.sizeHint())
+        self.setFixedSize(978,617)
+        #self.bot_invisible_label.setVisible(True)
+        #self.setFixedSize(self.layout.sizeHint())
+        #self.bot_invisible_label.setVisible(False)
+        #self.load_settings()
 
     def init_timer(self):
         self.timer = QTimer()
@@ -121,6 +127,7 @@ class Window(QWidget):
         settings_button_box = self.make_settings_button_box()
         self.init_imgs()
         bot_box = self.make_bot_box()
+        #self.bot_invisible_label = QLabel()
 
         self.layout = QVBoxLayout()
         self.layout.setAlignment(Qt.AlignTop)
@@ -129,6 +136,9 @@ class Window(QWidget):
         self.layout.addWidget(self.crop_img)
         self.layout.addWidget(self.filter_img)
         self.layout.addWidget(bot_box)
+
+        #self.layout.addWidget(self.bot_invisible_label)
+
         self.setLayout(self.layout)
 
     def make_settings_button_box(self):
@@ -570,6 +580,7 @@ class Window(QWidget):
         else:
             self.filter_img.show()
         self.setFixedSize(self.layout.sizeHint())
+        #print("{}h,{}w".format(self.frameGeometry().height(),self.frameGeometry().width()))
 
     def set_sliders_range(self, x, y):
         max_values = {'x': int(x/2), 'y': int(y/2), 'w':x, 'h':y}
@@ -699,10 +710,9 @@ class Window(QWidget):
             h, w = filtered.shape
             bytes_per_line = w
             filtered_pix = QPixmap(QImage(filtered, w, h, bytes_per_line, QImage.Format_Grayscale8))
-            if w != 908 or h != 70:
-                filtered_pix = filtered_pix.scaled(908, 70, Qt.KeepAspectRatio)
+            filtered_pix = filtered_pix.scaled(908, 70, Qt.KeepAspectRatio)
             self.image_label2.setPixmap(filtered_pix)
-        self.update_window_size(None, filtered_shape)
+        #self.update_window_size(None, filtered_shape)
 
     def update_screenshot(self, screenshot):
         screenshot_shape = None
@@ -711,10 +721,9 @@ class Window(QWidget):
             h, w, ch = screenshot.shape
             bytes_per_line = ch * w
             screenshot_pix = QPixmap(QImage(screenshot, w, h, bytes_per_line, QImage.Format_RGB888))
-            if w != 908 or h != 70:
-                screenshot_pix = screenshot_pix.scaled(908, 70, Qt.KeepAspectRatio)
+            screenshot_pix = screenshot_pix.scaled(908, 70, Qt.KeepAspectRatio)
             self.image_label.setPixmap(screenshot_pix)
-        self.update_window_size(screenshot_shape, None)
+        #self.update_window_size(screenshot_shape, None)
 
     def update_window_size(self, screenshot_shape, filtered_shape):
         should_update = False

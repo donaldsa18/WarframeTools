@@ -143,7 +143,7 @@ class MarketReader:
             for prime in self.primes:
                 c.write("{},{},{}\n".format(prime[0],prime[1],prime[2]))
 
-    def set_num_threads(self,val):
+    def set_num_threads(self, val):
         self.threads = val
 
     def safe_cast(self, val, to_type, default=None):

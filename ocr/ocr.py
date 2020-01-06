@@ -16,8 +16,9 @@ import string
 import re
 import difflib
 
-import subprocess
-import shlex
+if os.path.isdir('tesseract4win64-4.0-beta\\tessdata'):
+    os.environ['TESSDATA_PREFIX'] = os.path.abspath('tesseract4win64-4.0-beta\\tessdata')
+
 from concurrent.futures import ThreadPoolExecutor
 from optparse import OptionParser
 from tesserocr import PyTessBaseAPI
@@ -76,7 +77,8 @@ class OCR:
         self.regex_alphabet = re.compile('[^a-zA-Z\s]')
 
         self.datetime_format = "%Y-%m-%d %I.%M.%S%p"
-        #os.environ['TESSDATA_PREFIX'] = 'tesseract\\tessdata'
+        if os.path.isdir('tesseract4win64-4.0-beta\\tessdata'):
+            os.environ['TESSDATA_PREFIX'] = os.path.abspath('tesseract4win64-4.0-beta\\tessdata')
 
         self.gui = gui
         self.exit_now = False
@@ -136,12 +138,17 @@ class OCR:
 
     def bring_to_front(self):
         if self.move_to_top:
-            top_windows = []
-            win32gui.EnumWindows(self.window_enumeration_handler, top_windows)
-            for i in top_windows:
-                if self.title in i[1]:
-                    win32gui.ShowWindow(i[0], 5)
-                    win32gui.SetForegroundWindow(i[0])
+            if self.gui is None:
+                top_windows = []
+                win32gui.EnumWindows(self.window_enumeration_handler, top_windows)
+                for i in top_windows:
+                    if self.title in i[1]:
+                        win32gui.ShowWindow(i[0], 5)
+                        win32gui.SetForegroundWindow(i[0])
+            else:
+                hwnd = win32gui.FindWindow(None, self.title)
+                win32gui.ShowWindow(hwnd, 5)
+                win32gui.SetForegroundWindow(hwnd)
 
     def dict_match(self, text):
         words = text.split(" ")
