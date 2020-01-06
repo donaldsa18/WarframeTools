@@ -17,11 +17,92 @@ class Window(QWidget):
         super(Window, self).__init__()
 
         self.icon_path = 'warframe.ico'
+        self.setWindowTitle('Warframe Prime Helper')
 
-        #self.layout = QVBoxLayout()
         self.market_api = None
 
+        self.image_label = None
+        self.image_label2 = None
 
+        self.warframe_height = 1080
+        self.warframe_width = 1920
+
+        self.table = None
+        self.mission_table = None
+
+        self.slider_names = None
+        self.sliders = None
+        self.slider_labels = None
+        self.slider_default_values = None
+        self.slider_values = None
+        self.is_slider_max_set = False
+
+        #self.plat_check_box = QCheckBox("Prefer platinum")
+        #self.plat_check_box.setChecked(True)
+
+        self.update_prices_button = None
+        self.update_ducats_button = None
+        self.update_prices_progress = None
+        self.update_ducats_progress = None
+        self.last_updated_prices_value = None
+        self.last_updated_ducats_value = None
+        self.num_parts_value = None
+        self.latest_item_value = None
+
+        self.move_to_top_check_box = None
+        self.pause_button = None
+        self.is_paused = False
+
+        self.hide_crop_check_box = None
+        self.hide_filter_check_box = None
+        self.hide_fissure_check_box = None
+
+        self.hide_relics = {}
+        self.hidden_relics = set()
+
+        self.crop_img = None
+        self.filter_img = None
+
+        self.dialog = None
+        self.layout = None
+
+        self.filled_rows = 0
+        self.max = -1
+        self.max_row = -1
+
+        self.ocr = None
+        self.old_screenshot_shape = 0
+        self.old_filtered_shape = 0
+
+        self.missions = []
+
+        self.num_primes = 100
+        self.api = None
+
+        self.prices_progress_lock = Lock()
+        self.ducats_progress_lock = Lock()
+
+        self.ducats_thread = None
+        self.prices_thread = None
+
+        self.timer = None
+
+        self.init_image_labels()
+        self.init_tables()
+        self.init_sliders()
+        self.init_dialog()
+        self.set_layout()
+        self.init_timer()
+
+        self.show()
+        self.setFixedSize(self.layout.sizeHint())
+
+    def init_timer(self):
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.update_mission_table_time)
+        self.timer.start(1000)
+
+    def init_image_labels(self):
         self.image_label = QLabel()
         image = QPixmap('temp\\crop_27.bmp')
         self.image_label.setPixmap(image)
@@ -29,75 +110,194 @@ class Window(QWidget):
         self.image_label2 = QLabel()
         self.image_label2.setPixmap(image)
 
+    def set_layout(self):
+        settings_button_box = self.make_settings_button_box()
+        self.init_imgs()
+        bot_box = self.make_bot_box()
+
+        self.layout = QVBoxLayout()
+        self.layout.setAlignment(Qt.AlignTop)
+        self.layout.addSpacing(-14)
+        self.layout.addLayout(settings_button_box)
+        self.layout.addWidget(self.crop_img)
+        self.layout.addWidget(self.filter_img)
+        self.layout.addWidget(bot_box)
+        self.setLayout(self.layout)
+
+    def make_settings_button_box(self):
+        settings_button = QPushButton("\u2699")
+        settings_button.setStyleSheet("background-color: rgba(0, 0, 0, 255); font-size: 23px;")
+        settings_button.clicked.connect(self.show_preferences)
+        settings_button.setFixedWidth(30)
+        settings_button.setFixedHeight(30)
+
+        settings_button_hb = QHBoxLayout()
+        settings_button_hb.setAlignment(Qt.AlignRight)
+        settings_button_hb.addWidget(settings_button)
+        settings_button_hb.addSpacing(-13)
+        return settings_button_hb
+
+    def make_bot_box(self):
         bot_layout = QHBoxLayout()
-        warframe_height = 1080
-        warframe_width = 1920
+        bot_layout.addWidget(self.table)
+        bot_layout.addWidget(self.mission_table)
 
-        self.table = QTableWidget(7, 3)
-        self.table.setHorizontalHeaderLabels(['Prime Part', 'Plat', 'Ducats'])
-        self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
-        header = self.table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.Stretch)
-        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
+        bot_box = QGroupBox()
+        bot_box.setLayout(bot_layout)
+        bot_box.setFixedHeight(287)
+        return bot_box
 
-        self.mission_table = QTableWidget(30, 4)
-        self.mission_table.setHorizontalHeaderLabels(['Relic', 'Mission', 'Type', 'Time Left'])
-        self.mission_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+    def init_dialog(self):
+        crop_box = self.make_crop_box()
+        filter_box = self.make_filter_box()
+        other_box = self.make_other_box()
 
-        mission_header = self.mission_table.horizontalHeader()
+        settings_layout_1 = QVBoxLayout()
+        settings_layout_1.addWidget(crop_box)
+        settings_layout_1.addWidget(filter_box)
+        settings_layout_1.addWidget(other_box)
 
-        for i in range(4):
-            mission_header.setSectionResizeMode(i, QHeaderView.Interactive)
-        mission_header.resizeSection(0, 55)
-        mission_header.resizeSection(1, 150)
-        mission_header.resizeSection(2, 90)
-        mission_header.resizeSection(3, 60)
-        self.mission_table.setFixedWidth(405)
+        update_box = self.make_update_box()
+        rate_box = self.make_rate_box()
 
-        self.slider_names = ['x', 'y', 'w', 'h', 'v1', 'v2', 'Screencap (s)', 'Fissure (s)', 'API Threads']
-        self.sliders = {x: QSlider(Qt.Horizontal) for x in self.slider_names}
-        slider_labels = {x: QLabel(x) for x in self.slider_names}
-        self.slider_default_values = {'x': 521, 'y': 400, 'w': 908, 'h': 70, 'v1': 197, 'v2': 180, 'Screencap (s)': 1, 'Fissure (s)': 30, 'API Threads':4}
-        self.slider_values = {x: QLabel(str(self.slider_default_values[x])) for x in self.slider_names}
+        settings_layout_2 = QVBoxLayout()
+        settings_layout_2.addWidget(update_box)
+        settings_layout_2.addWidget(rate_box)
 
-        self.sliders['x'].setMaximum(int(warframe_width / 2))
-        self.sliders['y'].setMaximum(int(warframe_height / 2))
-        self.sliders['w'].setMaximum(warframe_width)
-        self.sliders['h'].setMaximum(warframe_height)
-        self.sliders['v1'].setMaximum(255)
-        self.sliders['v2'].setMaximum(255)
-        self.sliders['Screencap (s)'].setMaximum(5)
-        self.sliders['Screencap (s)'].setMinimum(1)
-        self.sliders['Fissure (s)'].setMaximum(60)
-        self.sliders['Fissure (s)'].setMinimum(10)
-        self.sliders['API Threads'].setMaximum(10)
-        self.sliders['API Threads'].setMinimum(2)
-        for slider_name in self.slider_names:
-            if len(slider_name) <= 2:
-                self.sliders[slider_name].setMinimum(0)
-            self.sliders[slider_name].setSingleStep(1)
-            self.slider_values[slider_name].setFixedWidth(35)
-            self.sliders[slider_name].setValue(self.slider_default_values[slider_name])
+        hide_box = self.make_hide_box()
+        hide_relics_box = self.make_hide_relics_box()
 
-        self.is_slider_max_set = False
+        settings_layout_3 = QVBoxLayout()
+        settings_layout_3.addWidget(hide_box)
+        settings_layout_3.addWidget(hide_relics_box)
 
-        self.pref_grid = QGridLayout()
-        self.pref_grid.setColumnStretch(3, 7)
+        settings_layout = QHBoxLayout()
+        settings_layout.addLayout(settings_layout_1)
+        settings_layout.addLayout(settings_layout_2)
+        settings_layout.addLayout(settings_layout_3)
 
+        self.dialog = QDialog()
+        self.dialog.setWindowTitle("Preferences")
+        self.dialog.setWindowModality(Qt.ApplicationModal)
+        self.dialog.setLayout(settings_layout)
+
+    def init_imgs(self):
+        self.crop_img = QGroupBox("Crop")
+        crop_img_layout = QVBoxLayout()
+        crop_img_layout.addWidget(self.image_label)
+        self.crop_img.setLayout(crop_img_layout)
+
+        self.filter_img = QGroupBox("Filtered")
+        filter_img_layout = QVBoxLayout()
+        filter_img_layout.addWidget(self.image_label2)
+        self.filter_img.setLayout(filter_img_layout)
+
+    def make_hide_relics_box(self):
+        hide_relics_layout = QVBoxLayout()
+        hide_relics_layout.setAlignment(Qt.AlignTop)
+        hide_relics_layout.setContentsMargins(0, 0, 0, 0)
+        relics = ["Axi", "Neo", "Meso", "Lith", "Requiem"]
+
+        for relic in relics:
+            self.hide_relics[relic] = QCheckBox(relic)
+            self.hide_relics[relic].setChecked(False)
+            self.hide_relics[relic].stateChanged.connect(partial(self.set_hidden_relic, relic))
+            hide_relics_layout.addWidget(self.hide_relics[relic])
+
+        hide_relics_box = QGroupBox("Hide Relics")
+        hide_relics_box.setLayout(hide_relics_layout)
+        return hide_relics_box
+
+    def make_hide_box(self):
+        hide_layout = QVBoxLayout()
+        hide_layout.setAlignment(Qt.AlignTop)
+        hide_layout.setContentsMargins(0, 0, 0, 0)
+
+        self.hide_crop_check_box = QCheckBox("Hide Crop")
+        self.hide_crop_check_box.setChecked(False)
+        self.hide_crop_check_box.stateChanged.connect(self.toggle_cropped_img)
+        hide_layout.addWidget(self.hide_crop_check_box)
+
+        self.hide_filter_check_box = QCheckBox("Hide Filtered")
+        self.hide_filter_check_box.setChecked(False)
+        self.hide_filter_check_box.stateChanged.connect(self.toggle_filtered_img)
+        hide_layout.addWidget(self.hide_filter_check_box)
+
+        self.hide_fissure_check_box = QCheckBox("Hide Fissure Table")
+        self.hide_fissure_check_box.setChecked(False)
+        self.hide_fissure_check_box.stateChanged.connect(self.toggle_fissure_table)
+        hide_layout.addWidget(self.hide_fissure_check_box)
+
+        hide_box = QGroupBox("Hide UI")
+        hide_box.setLayout(hide_layout)
+        return hide_box
+
+    def make_rate_box(self):
+        rate_grid = QGridLayout()
+        rate_grid.setColumnStretch(3, 3)
+        rate_grid.setContentsMargins(0, 0, 0, 0)
+        for i in range(3):
+            slider_name = self.slider_names[i + 6]
+            rate_grid.addWidget(self.slider_labels[slider_name], i, 0)
+            rate_grid.addWidget(self.slider_values[slider_name], i, 1)
+            rate_grid.addWidget(self.sliders[slider_name], i, 2)
+
+        rate_box = QGroupBox("Rates")
+        rate_box.setLayout(rate_grid)
+        return rate_box
+
+    def make_other_box(self):
+        self.move_to_top_check_box = QCheckBox("Bring to front")
+        self.move_to_top_check_box.setChecked(True)
+        self.move_to_top_check_box.stateChanged.connect(self.toggle_move_to_top)
         self.pause_button = QPushButton("Pause")
         self.pause_button.clicked.connect(self.toggle_button)
         self.is_paused = False
+        other_layout = QVBoxLayout()
+        other_layout.setAlignment(Qt.AlignTop)
+        other_layout.setContentsMargins(0, 0, 0, 0)
+        other_layout.addWidget(self.move_to_top_check_box)
+        other_layout.addWidget(self.pause_button)
 
-        self.plat_check_box = QCheckBox("Prefer platinum")
-        self.plat_check_box.setChecked(True)
-        #self.pref_grid.addWidget(self.plat_check_box, 1, 0, 1, 3)
+        other_box = QGroupBox("Other")
+        other_box.setLayout(other_layout)
+        return other_box
 
+    def make_filter_box(self):
+        filter_grid = QGridLayout()
+        filter_grid.setColumnStretch(3, 2)
+        filter_grid.setAlignment(Qt.AlignTop)
+        filter_grid.setContentsMargins(0, 0, 0, 0)
+        for i in range(2):
+            slider_name = self.slider_names[i + 4]
+            filter_grid.addWidget(self.slider_labels[slider_name], i, 0)
+            filter_grid.addWidget(self.slider_values[slider_name], i, 1)
+            filter_grid.addWidget(self.sliders[slider_name], i, 2)
+
+        filter_box = QGroupBox("Filter Parameters")
+        filter_box.setLayout(filter_grid)
+        return filter_box
+
+    def make_crop_box(self):
+        crop_grid = QGridLayout()
+        crop_grid.setColumnStretch(3, 4)
+        crop_grid.setAlignment(Qt.AlignTop)
+        crop_grid.setContentsMargins(0, 0, 0, 0)
+        for i in range(4):
+            slider_name = self.slider_names[i]
+            crop_grid.addWidget(self.slider_labels[slider_name], i, 0)
+            crop_grid.addWidget(self.slider_values[slider_name], i, 1)
+            crop_grid.addWidget(self.sliders[slider_name], i, 2)
+
+        crop_box = QGroupBox("Crop Parameters")
+        crop_box.setLayout(crop_grid)
+        return crop_box
+
+    def make_update_box(self):
         update_layout = QGridLayout()
         update_layout.setColumnStretch(4, 2)
         update_layout.setAlignment(Qt.AlignTop)
         update_layout.setContentsMargins(0, 0, 0, 0)
-
         self.update_prices_button = QPushButton("Update Prices")
         self.update_prices_button.clicked.connect(self.update_prices)
         self.update_prices_progress = QProgressBar()
@@ -136,188 +336,57 @@ class Window(QWidget):
 
         update_box = QGroupBox("Updates")
         update_box.setLayout(update_layout)
+        return update_box
 
-        crop_grid = QGridLayout()
-        crop_grid.setColumnStretch(3, 4)
-        crop_grid.setAlignment(Qt.AlignTop)
-        crop_grid.setContentsMargins(0, 0, 0, 0)
+    def init_sliders(self):
+        self.slider_names = ['x', 'y', 'w', 'h', 'v1', 'v2', 'Screencap (s)', 'Fissure (s)', 'API Threads']
+        self.sliders = {x: QSlider(Qt.Horizontal) for x in self.slider_names}
+        self.slider_labels = {x: QLabel(x) for x in self.slider_names}
+        self.slider_default_values = {'x': 521, 'y': 400, 'w': 908, 'h': 70, 'v1': 197, 'v2': 180, 'Screencap (s)': 1,
+                                      'Fissure (s)': 30, 'API Threads': 4}
+        self.slider_values = {x: QLabel(str(self.slider_default_values[x])) for x in self.slider_names}
+
+        self.sliders['x'].setMaximum(int(self.warframe_width / 2))
+        self.sliders['y'].setMaximum(int(self.warframe_height / 2))
+        self.sliders['w'].setMaximum(self.warframe_width)
+        self.sliders['h'].setMaximum(self.warframe_height)
+        self.sliders['v1'].setMaximum(255)
+        self.sliders['v2'].setMaximum(255)
+        self.sliders['Screencap (s)'].setMaximum(5)
+        self.sliders['Screencap (s)'].setMinimum(1)
+        self.sliders['Fissure (s)'].setMaximum(60)
+        self.sliders['Fissure (s)'].setMinimum(10)
+        self.sliders['API Threads'].setMaximum(10)
+        self.sliders['API Threads'].setMinimum(2)
+        for slider_name in self.slider_names:
+            if len(slider_name) <= 2:
+                self.sliders[slider_name].setMinimum(0)
+            self.sliders[slider_name].setSingleStep(1)
+            self.slider_values[slider_name].setFixedWidth(35)
+            self.sliders[slider_name].setValue(self.slider_default_values[slider_name])
+
+    def init_tables(self):
+        self.table = QTableWidget(7, 3)
+        self.table.setHorizontalHeaderLabels(['Prime Part', 'Plat', 'Ducats'])
+        self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        header = self.table.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.Stretch)
+        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
+
+        self.mission_table = QTableWidget(30, 4)
+        self.mission_table.setHorizontalHeaderLabels(['Relic', 'Mission', 'Type', 'Time Left'])
+        self.mission_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+
+        mission_header = self.mission_table.horizontalHeader()
+
         for i in range(4):
-            slider_name = self.slider_names[i]
-            crop_grid.addWidget(slider_labels[slider_name], i, 0)
-            crop_grid.addWidget(self.slider_values[slider_name], i, 1)
-            crop_grid.addWidget(self.sliders[slider_name], i, 2)
-
-        crop_box = QGroupBox("Crop Parameters")
-        crop_box.setLayout(crop_grid)
-
-        filter_grid = QGridLayout()
-        filter_grid.setColumnStretch(3, 2)
-        filter_grid.setAlignment(Qt.AlignTop)
-        filter_grid.setContentsMargins(0, 0, 0, 0)
-        for i in range(2):
-            slider_name = self.slider_names[i+4]
-            filter_grid.addWidget(slider_labels[slider_name], i, 0)
-            filter_grid.addWidget(self.slider_values[slider_name], i, 1)
-            filter_grid.addWidget(self.sliders[slider_name], i, 2)
-
-        filter_box = QGroupBox("Filter Parameters")
-        filter_box.setLayout(filter_grid)
-
-        self.move_to_top_check_box = QCheckBox("Bring to front")
-        self.move_to_top_check_box.setChecked(True)
-        self.move_to_top_check_box.stateChanged.connect(self.toggle_move_to_top)
-
-        other_layout = QVBoxLayout()
-        other_layout.setAlignment(Qt.AlignTop)
-        other_layout.setContentsMargins(0, 0, 0, 0)
-        other_layout.addWidget(self.move_to_top_check_box)
-        other_layout.addWidget(self.pause_button)
-
-        other_box = QGroupBox("Other")
-        other_box.setLayout(other_layout)
-
-        settings_layout_1 = QVBoxLayout()
-        settings_layout_1.addWidget(crop_box)
-        settings_layout_1.addWidget(filter_box)
-        settings_layout_1.addWidget(other_box)
-
-        rate_grid = QGridLayout()
-        rate_grid.setColumnStretch(3, 3)
-        rate_grid.setContentsMargins(0, 0, 0, 0)
-        for i in range(3):
-            slider_name = self.slider_names[i+6]
-            rate_grid.addWidget(slider_labels[slider_name], i, 0)
-            rate_grid.addWidget(self.slider_values[slider_name], i, 1)
-            rate_grid.addWidget(self.sliders[slider_name], i, 2)
-
-        rate_box = QGroupBox("Rates")
-        rate_box.setLayout(rate_grid)
-
-        settings_layout_2 = QVBoxLayout()
-        settings_layout_2.addWidget(update_box)
-        settings_layout_2.addWidget(rate_box)
-        #settings_layout_2.addWidget(self.pause_button)
-
-        hide_layout = QVBoxLayout()
-        hide_layout.setAlignment(Qt.AlignTop)
-        hide_layout.setContentsMargins(0, 0, 0, 0)
-
-        self.hide_crop_check_box = QCheckBox("Hide Crop")
-        self.hide_crop_check_box.setChecked(False)
-        self.hide_crop_check_box.stateChanged.connect(self.toggle_cropped_img)
-        hide_layout.addWidget(self.hide_crop_check_box)
-
-        self.hide_filter_check_box = QCheckBox("Hide Filtered")
-        self.hide_filter_check_box.setChecked(False)
-        self.hide_filter_check_box.stateChanged.connect(self.toggle_filtered_img)
-        hide_layout.addWidget(self.hide_filter_check_box)
-
-        self.hide_fissure_check_box = QCheckBox("Hide Fissure Table")
-        self.hide_fissure_check_box.setChecked(False)
-        self.hide_fissure_check_box.stateChanged.connect(self.toggle_fissure_table)
-        hide_layout.addWidget(self.hide_fissure_check_box)
-
-        hide_box = QGroupBox("Hide UI")
-        hide_box.setLayout(hide_layout)
-
-        hide_relics_layout = QVBoxLayout()
-        hide_relics_layout.setAlignment(Qt.AlignTop)
-        hide_relics_layout.setContentsMargins(0, 0, 0, 0)
-        relics = ["Axi", "Neo", "Meso", "Lith", "Requiem"]
-        self.hide_relics = {}
-        for relic in relics:
-            self.hide_relics[relic] = QCheckBox(relic)
-            self.hide_relics[relic].setChecked(False)
-            self.hide_relics[relic].stateChanged.connect(partial(self.set_hidden_relic, relic))
-            hide_relics_layout.addWidget(self.hide_relics[relic])
-
-        hide_relics_box = QGroupBox("Hide Relics")
-        hide_relics_box.setLayout(hide_relics_layout)
-
-        self.hidden_relics = set()
-
-        settings_layout_3 = QVBoxLayout()
-        settings_layout_3.addWidget(hide_box)
-        settings_layout_3.addWidget(hide_relics_box)
-
-
-        self.settings_layout = QHBoxLayout()
-        self.settings_layout.addLayout(settings_layout_1)
-        self.settings_layout.addLayout(settings_layout_2)
-        self.settings_layout.addLayout(settings_layout_3)
-
-        bot_layout.addWidget(self.table)
-        bot_layout.addWidget(self.mission_table)
-        #bot_layout.addWidget(self.pref_box)
-        #bot_layout.addWidget(update_box)
-
-        bot_box = QGroupBox()
-        bot_box.setLayout(bot_layout)
-        bot_box.setFixedHeight(287)
-
-        self.crop_img = QGroupBox("Crop")
-        crop_img_layout = QVBoxLayout()
-        crop_img_layout.addWidget(self.image_label)
-        self.crop_img.setLayout(crop_img_layout)
-
-        self.filter_img = QGroupBox("Filtered")
-        filter_img_layout = QVBoxLayout()
-        filter_img_layout.addWidget(self.image_label2)
-        self.filter_img.setLayout(filter_img_layout)
-
-        settings_button = QPushButton("\u2699")
-        settings_button.setStyleSheet("background-color: rgba(0, 0, 0, 255); font-size: 23px;")
-        settings_button.clicked.connect(self.show_preferences)
-        settings_button.setFixedWidth(30)
-        settings_button.setFixedHeight(30)
-        self.layout = QVBoxLayout()
-        self.layout.setAlignment(Qt.AlignTop)
-        self.layout.addSpacing(-14)
-
-        settings_button_hb = QHBoxLayout()
-        settings_button_hb.setAlignment(Qt.AlignRight)
-        settings_button_hb.addWidget(settings_button)
-        settings_button_hb.addSpacing(-13)
-
-        self.layout.addLayout(settings_button_hb)
-
-        self.layout.addWidget(self.crop_img)
-        self.layout.addWidget(self.filter_img)
-        self.layout.addWidget(bot_box)
-
-        self.filled_rows = 0
-        self.max = -1
-        self.max_row = -1
-        self.setLayout(self.layout)
-        self.setWindowTitle('Warframe Prime Helper')
-
-        self.ocr = None
-        self.old_screenshot_shape = 0
-        self.old_filtered_shape = 0
-
-        self.missions = []
-
-        self.dialog = QDialog()
-        self.dialog.setWindowTitle("Preferences")
-        self.dialog.setWindowModality(Qt.ApplicationModal)
-        self.dialog.setLayout(self.settings_layout)
-
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.update_mission_table_time)
-        self.timer.start(1000)
-
-        self.show()
-        self.setFixedSize(self.layout.sizeHint())
-
-        self.ducats_thread = None
-        self.prices_thread = None
-
-        self.prices_progress_lock = Lock()
-        self.ducats_progress_lock = Lock()
-
-        self.num_primes = 100
-
-        self.api = None
+            mission_header.setSectionResizeMode(i, QHeaderView.Interactive)
+        mission_header.resizeSection(0, 55)
+        mission_header.resizeSection(1, 150)
+        mission_header.resizeSection(2, 90)
+        mission_header.resizeSection(3, 60)
+        self.mission_table.setFixedWidth(405)
 
     def update_prices(self):
         self.prices_thread = threading.Thread(name="prices_thread", target=self.market_api.update_prices)
@@ -560,14 +629,13 @@ class Window(QWidget):
     def __exit__(self):
         self.market_api.exit_now = True
         self.ocr.exit_now = True
-        #self.prices_thread.join()
-        #self.ducats_thread.join()
 
 
 class OCRThread(QThread):
     def __init__(self, gui):
         QThread.__init__(self)
         self.ocr = OCR(debug=False, gui=gui)
+        self.ocr_thread = None
 
     def __del__(self):
         self.ocr.exit_now = True
@@ -577,8 +645,6 @@ class OCRThread(QThread):
     def run(self):
         self.ocr_thread = threading.Thread(name="ocr_thread", target=self.ocr.main)
         self.ocr_thread.start()
-        while self.ocr is not None and not self.ocr.exit_now:
-            time.sleep(1)
 
 
 class APIThread(QThread):
@@ -593,7 +659,7 @@ class APIThread(QThread):
 
     def run(self):
         self.api_thread = threading.Thread(name="api_thread", target=api.run)
-        self.api.run()
+        self.api.run(blocking=False)
 
 
 if __name__ == "__main__":

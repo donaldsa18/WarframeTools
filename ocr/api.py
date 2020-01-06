@@ -27,10 +27,10 @@ class APIReader:
     def set_rate(self, val):
         self.rate = val
 
-    def run(self):
+    def run(self, blocking=True):
         self.update()
         self.scheduler.run(blocking=False)
-        while not self.exit_now:
+        while blocking and not self.exit_now:
             time.sleep(1)
 
     def update(self):
