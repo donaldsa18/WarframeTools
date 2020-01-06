@@ -306,9 +306,6 @@ class OCR:
         except:
             return False
 
-    def update_screen(self, screenshot, filtered):
-        self.gui.update_images(screenshot, filtered)
-
     def read_screen(self, old_read_primes, old_filtered):
         screenshot_img = self.screenshot()
         filtered = self.filter_img(screenshot_img)
@@ -316,8 +313,9 @@ class OCR:
         if self.gui is not None:
             #self.update_screen(screenshot_img, filtered)
             try:
-                with ThreadPoolExecutor(max_workers=len(self.crop_list)) as ex:
-                    ex.submit(self.update_screen, screenshot_img, filtered)
+                with ThreadPoolExecutor(max_workers=3) as ex:
+                    ex.submit(self.gui.update_screenshot, screenshot_img)
+                    ex.submit(self.gui.update_filtered, filtered)
             except KeyboardInterrupt:
                 return
         if self.image_identical(filtered, old_filtered):

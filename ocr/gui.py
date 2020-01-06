@@ -442,7 +442,7 @@ class Window(QWidget):
         self.sliders['h'].setMaximum(self.warframe_height)
         self.sliders['v1'].setMaximum(255)
         self.sliders['v2'].setMaximum(255)
-        self.sliders['Screencap (hz)'].setMaximum(10)
+        self.sliders['Screencap (hz)'].setMaximum(20)
         self.sliders['Screencap (hz)'].setMinimum(1)
         self.sliders['Fissure (s)'].setMaximum(60)
         self.sliders['Fissure (s)'].setMinimum(10)
@@ -690,18 +690,8 @@ class Window(QWidget):
         self.table.clearSelection()
         self.table.selectRow(self.max_row)
 
-    def update_images(self, screenshot, filtered):
-        screenshot_shape = None
+    def update_filtered(self, filtered):
         filtered_shape = None
-        if not self.hide_crop_check_box.isChecked():
-            screenshot_shape = screenshot.shape
-            h, w, ch = screenshot.shape
-            bytes_per_line = ch * w
-            screenshot_pix = QPixmap(QImage(screenshot, w, h, bytes_per_line, QImage.Format_RGB888))
-            if w != 908 or h != 70:
-                screenshot_pix = screenshot_pix.scaled(908, 70, Qt.KeepAspectRatio)
-            self.image_label.setPixmap(screenshot_pix)
-
         if not self.hide_filter_check_box.isChecked():
             filtered_shape = filtered.shape
             h, w = filtered.shape
@@ -710,7 +700,19 @@ class Window(QWidget):
             if w != 908 or h != 70:
                 filtered_pix = filtered_pix.scaled(908, 70, Qt.KeepAspectRatio)
             self.image_label2.setPixmap(filtered_pix)
-        self.update_window_size(screenshot_shape, filtered_shape)
+        self.update_window_size(None, filtered_shape)
+
+    def update_screenshot(self, screenshot):
+        screenshot_shape = None
+        if not self.hide_crop_check_box.isChecked():
+            screenshot_shape = screenshot.shape
+            h, w, ch = screenshot.shape
+            bytes_per_line = ch * w
+            screenshot_pix = QPixmap(QImage(screenshot, w, h, bytes_per_line, QImage.Format_RGB888))
+            if w != 908 or h != 70:
+                screenshot_pix = screenshot_pix.scaled(908, 70, Qt.KeepAspectRatio)
+            self.image_label.setPixmap(screenshot_pix)
+        self.update_window_size(screenshot_shape, None)
 
     def update_window_size(self, screenshot_shape, filtered_shape):
         should_update = False
