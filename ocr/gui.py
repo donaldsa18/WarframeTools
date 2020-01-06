@@ -1,7 +1,7 @@
 from PyQt5.QtWidgets import QApplication, QTableWidget, QWidget, QVBoxLayout, QLabel, QAbstractItemView, QHBoxLayout, \
-    QSlider, QGridLayout, QGroupBox, QCheckBox, QHeaderView, QPushButton, QProgressBar, QTableWidgetItem, QDialog
+    QSlider, QGridLayout, QGroupBox, QCheckBox, QHeaderView, QPushButton, QProgressBar, QTableWidgetItem, QDialog, QDialogButtonBox
 from PyQt5.QtGui import QIcon, QPixmap, QImage
-from PyQt5.QtCore import Qt, QThread, QTimer, QDateTime
+from PyQt5.QtCore import Qt, QThread, QTimer, QSettings
 import qdarkstyle
 from functools import partial
 from ocr import OCR
@@ -17,7 +17,10 @@ class Window(QWidget):
         super(Window, self).__init__()
 
         self.icon_path = 'warframe.ico'
-        self.setWindowTitle('Warframe Prime Helper')
+        self.app_title = 'Warframe Prime Helper'
+        self.company_name = 'Warframe Tools'
+        self.settings = QSettings(self.company_name,self.app_title)
+        self.setWindowTitle(self.app_title)
 
         self.market_api = None
 
@@ -34,6 +37,7 @@ class Window(QWidget):
         self.sliders = None
         self.slider_labels = None
         self.slider_default_values = None
+        self.slider_orig_values = None
         self.slider_values = None
         self.is_slider_max_set = False
 
@@ -57,6 +61,7 @@ class Window(QWidget):
         self.hide_filter_check_box = None
         self.hide_fissure_check_box = None
 
+        self.relics = None
         self.hide_relics = {}
         self.hidden_relics = set()
 
@@ -166,10 +171,12 @@ class Window(QWidget):
 
         hide_box = self.make_hide_box()
         hide_relics_box = self.make_hide_relics_box()
+        button_box = self.make_button_box()
 
         settings_layout_3 = QVBoxLayout()
         settings_layout_3.addWidget(hide_box)
         settings_layout_3.addWidget(hide_relics_box)
+        settings_layout_3.addWidget(button_box)
 
         settings_layout = QHBoxLayout()
         settings_layout.addLayout(settings_layout_1)
@@ -180,6 +187,79 @@ class Window(QWidget):
         self.dialog.setWindowTitle("Preferences")
         self.dialog.setWindowModality(Qt.ApplicationModal)
         self.dialog.setLayout(settings_layout)
+
+    def make_button_box(self):
+        button_box = QDialogButtonBox()
+        button_box.setOrientation(Qt.Horizontal)
+        button_box.setStandardButtons(QDialogButtonBox.Cancel | QDialogButtonBox.Ok)
+        button_box.accepted.connect(self.save_settings)
+        button_box.rejected.connect(self.load_settings)
+        return button_box
+
+    def load_settings(self):
+        slider_orig_values = {'x': 521, 'y': 400, 'w': 908, 'h': 70, 'v1': 197, 'v2': 180, 'Screencap (hz)': 1,
+                                   'Fissure (s)': 30, 'API Threads': 4}
+        self.slider_default_values = {}
+        slider_default_max = {'x': self.warframe_width/2,
+                              'y': self.warframe_height/2,
+                              'w': self.warframe_width,
+                              'h': self.warframe_height,
+                              'v1': 255,
+                              'v2': 255}
+
+        for slider_name in self.slider_names:
+            self.slider_default_values[slider_name] = self.settings.value(slider_name,defaultValue=slider_orig_values[slider_name])
+            if len(slider_name) <= 2:
+                max_val = self.settings.value("{}_max".format(slider_name), defaultValue=slider_default_max[slider_name], type=int)
+                self.sliders[slider_name].setMaximum(max_val)
+            self.sliders[slider_name].setValue(self.slider_default_values[slider_name])
+
+        prices = self.settings.value("last_updated_prices_value", defaultValue="Never", type=str)
+        ducats = self.settings.value("last_updated_ducats_value", defaultValue="Never", type=str)
+        num_parts = self.settings.value("num_parts_value", defaultValue=350, type=int)
+        latest_item = self.settings.value("latest_item_value", defaultValue="", type=str)
+
+        self.last_updated_prices_value.setText(prices)
+        self.last_updated_ducats_value.setText(ducats)
+        self.num_parts_value.setNum(num_parts)
+        self.latest_item_value.setText(latest_item)
+
+        for relic in self.relics:
+            checked = self.settings.value("hide_{}".format(relic),defaultValue=False,type=bool)
+            self.hide_relics[relic].setChecked(checked)
+            if checked:
+                self.set_hidden_relic(relic)
+
+        if self.settings.value("toggle_fissure_table", defaultValue=False, type=bool):
+            self.hide_fissure_check_box.setChecked(True)
+            self.toggle_fissure_table(None)
+
+        if self.settings.value("toggle_move_to_top", defaultValue=False, type=bool):
+            self.move_to_top_check_box.setChecked(True)
+            self.toggle_move_to_top(None)
+
+        if self.settings.value("toggle_cropped_img", defaultValue=False, type=bool):
+            self.hide_crop_check_box.setChecked(True)
+            self.toggle_cropped_img(None)
+
+        if self.settings.value("toggle_filtered_img", defaultValue=False, type=bool):
+            self.hide_filter_check_box.setChecked(True)
+            self.toggle_filtered_img(None)
+        self.dialog.close()
+
+    def save_settings(self):
+        for slider_name in self.slider_names:
+            self.settings.setValue(slider_name, self.sliders[slider_name].value())
+            #self.settings.setValue("{}_max".format(slider_name), self.sliders[slider_name].maxValue())
+
+        for relic in self.relics:
+            self.settings.setValue("hide_{}".format(relic), self.hide_relics[relic].isChecked())
+
+        self.settings.setValue("toggle_fissure_table", self.hide_fissure_check_box.isChecked())
+        self.settings.setValue("toggle_move_to_top", self.move_to_top_check_box.isChecked())
+        self.settings.setValue("toggle_cropped_img", self.hide_crop_check_box.isChecked())
+        self.settings.setValue("toggle_filtered_img", self.hide_filter_check_box.isChecked())
+        self.dialog.close()
 
     def init_imgs(self):
         self.crop_img = QGroupBox("Crop")
@@ -196,9 +276,9 @@ class Window(QWidget):
         hide_relics_layout = QVBoxLayout()
         hide_relics_layout.setAlignment(Qt.AlignTop)
         hide_relics_layout.setContentsMargins(0, 0, 0, 0)
-        relics = ["Axi", "Neo", "Meso", "Lith", "Requiem"]
+        self.relics = ["Axi", "Neo", "Meso", "Lith", "Requiem"]
 
-        for relic in relics:
+        for relic in self.relics:
             self.hide_relics[relic] = QCheckBox(relic)
             self.hide_relics[relic].setChecked(False)
             self.hide_relics[relic].stateChanged.connect(partial(self.set_hidden_relic, relic))
@@ -315,22 +395,29 @@ class Window(QWidget):
         update_layout.addWidget(self.update_ducats_progress, 1, 1)
 
         last_updated_prices_label = QLabel("Prices Updated")
-        self.last_updated_prices_value = QLabel("1/1/2020")
+
+        prices = self.settings.value("last_updated_prices_value",defaultValue="Never", type=str)
+        ducats = self.settings.value("last_updated_ducats_value", defaultValue="Never", type=str)
+        num_parts = self.settings.value("num_parts_value", defaultValue=350, type=str)
+        latest_item = self.settings.value("latest_item_value", defaultValue="", type=str)
+
+        self.last_updated_prices_value = QLabel(prices)
+        self.last_updated_ducats_value = QLabel(ducats)
+        self.num_parts_value = QLabel(num_parts)
+        self.latest_item_value = QLabel(latest_item)
+
         update_layout.addWidget(last_updated_prices_label, 2, 0)
         update_layout.addWidget(self.last_updated_prices_value, 2, 1)
 
         last_updated_ducats_label = QLabel("Ducats Updated")
-        self.last_updated_ducats_value = QLabel("1/1/2020")
         update_layout.addWidget(last_updated_ducats_label, 3, 0)
         update_layout.addWidget(self.last_updated_ducats_value, 3, 1)
 
         num_parts_label = QLabel("Prime Parts")
-        self.num_parts_value = QLabel("100")
         update_layout.addWidget(num_parts_label, 4, 0)
         update_layout.addWidget(self.num_parts_value, 4, 1)
 
         latest_item_label = QLabel("Latest Prime")
-        self.latest_item_value = QLabel("Ivara Prime")
         update_layout.addWidget(latest_item_label, 5, 0)
         update_layout.addWidget(self.latest_item_value, 5, 1)
 
@@ -339,11 +426,14 @@ class Window(QWidget):
         return update_box
 
     def init_sliders(self):
-        self.slider_names = ['x', 'y', 'w', 'h', 'v1', 'v2', 'Screencap (s)', 'Fissure (s)', 'API Threads']
+        self.slider_names = ['x', 'y', 'w', 'h', 'v1', 'v2', 'Screencap (hz)', 'Fissure (s)', 'API Threads']
         self.sliders = {x: QSlider(Qt.Horizontal) for x in self.slider_names}
         self.slider_labels = {x: QLabel(x) for x in self.slider_names}
-        self.slider_default_values = {'x': 521, 'y': 400, 'w': 908, 'h': 70, 'v1': 197, 'v2': 180, 'Screencap (s)': 1,
-                                      'Fissure (s)': 30, 'API Threads': 4}
+        self.slider_default_values = {}
+        self.slider_orig_values = {'x': 521, 'y': 400, 'w': 908, 'h': 70, 'v1': 197, 'v2': 180, 'Screencap (hz)': 1,
+                                 'Fissure (s)': 30, 'API Threads': 4}
+        for slider_name in self.slider_names:
+            self.slider_default_values[slider_name] = self.settings.value(slider_name,defaultValue=self.slider_orig_values[slider_name])
         self.slider_values = {x: QLabel(str(self.slider_default_values[x])) for x in self.slider_names}
 
         self.sliders['x'].setMaximum(int(self.warframe_width / 2))
@@ -352,8 +442,8 @@ class Window(QWidget):
         self.sliders['h'].setMaximum(self.warframe_height)
         self.sliders['v1'].setMaximum(255)
         self.sliders['v2'].setMaximum(255)
-        self.sliders['Screencap (s)'].setMaximum(5)
-        self.sliders['Screencap (s)'].setMinimum(1)
+        self.sliders['Screencap (hz)'].setMaximum(10)
+        self.sliders['Screencap (hz)'].setMinimum(1)
         self.sliders['Fissure (s)'].setMaximum(60)
         self.sliders['Fissure (s)'].setMinimum(10)
         self.sliders['API Threads'].setMaximum(10)
@@ -364,7 +454,6 @@ class Window(QWidget):
             self.sliders[slider_name].setSingleStep(1)
             self.slider_values[slider_name].setFixedWidth(35)
             self.sliders[slider_name].setValue(self.slider_default_values[slider_name])
-
     def init_tables(self):
         self.table = QTableWidget(7, 3)
         self.table.setHorizontalHeaderLabels(['Prime Part', 'Plat', 'Ducats'])
@@ -418,11 +507,19 @@ class Window(QWidget):
         self.update_ducats_progress.setValue(self.num_primes)
         self.ducats_progress_lock.release()
 
+        self.settings.setValue("last_updated_ducats_value", self.last_updated_ducats_value.text())
+        self.settings.setValue("num_parts_value", self.num_parts_value.text())
+        self.settings.setValue("latest_item_value", self.latest_item_value.text())
+
     def update_prices_time(self):
         self.last_updated_prices_value.setText(self.get_datetime())
         self.prices_progress_lock.acquire()
         self.update_prices_progress.setValue(self.num_primes)
         self.prices_progress_lock.release()
+
+        self.settings.setValue("last_updated_prices_value", self.last_updated_prices_value.text())
+        self.settings.setValue("num_parts_value", self.num_parts_value.text())
+        self.settings.setValue("latest_item_value", self.latest_item_value.text())
 
     def set_update_prices_progress(self, val):
         if self.prices_progress_lock.acquire():
@@ -440,6 +537,7 @@ class Window(QWidget):
 
     def show_preferences(self):
         self.dialog.exec_()
+        self.load_settings()
 
     def toggle_fissure_table(self, checkbox):
         if self.hide_fissure_check_box.isChecked():
@@ -466,14 +564,11 @@ class Window(QWidget):
         self.setFixedSize(self.layout.sizeHint())
 
     def set_sliders_range(self, x, y):
-        if not self.is_slider_max_set:
-            self.sliders['x'].setMaximum(int(x / 2))
-            self.sliders['y'].setMaximum(int(y / 2))
-            self.sliders['w'].setMaximum(x)
-            self.sliders['h'].setMaximum(y)
-            for slider_name in self.slider_names:
-                self.sliders[slider_name].setValue(self.slider_default_values[slider_name])
-            self.is_slider_max_set = True
+        max_values = {'x': int(x/2), 'y': int(y/2), 'w':x, 'h':y}
+        for slider_name in max_values:
+            self.sliders[slider_name].setMaximum(max_values[slider_name])
+            self.sliders[slider_name].setValue(self.slider_default_values[slider_name])
+            self.settings.setValue("{}_max", max_values[slider_name])
 
     def toggle_button(self):
         self.is_paused = not self.is_paused
@@ -566,6 +661,8 @@ class Window(QWidget):
         self.update_mission_table_hidden()
 
     def set_ocr_crop(self, ocr, dim, val):
+        if dim == 'Screencap (hz)':
+            val = val / 4
         self.slider_values[dim].setNum(val)
         if val < 0 or val > 100000 or val is None:
             return
@@ -581,8 +678,8 @@ class Window(QWidget):
             ocr.set_v1(val)
         if dim == 'v2':
             ocr.set_v2(val)
-        if dim == 'Screencap (s)':
-            ocr.set_interval(val)
+        if dim == 'Screencap (hz)':
+            ocr.set_interval(1/val)
         if dim == 'Fissure (s)':
             self.api.set_rate(val)
         if dim == 'API Threads':
@@ -635,7 +732,7 @@ class OCRThread(QThread):
     def __init__(self, gui):
         QThread.__init__(self)
         self.ocr = OCR(debug=False, gui=gui)
-        self.ocr_thread = None
+        self.ocr_thread = threading.Thread(name="ocr_thread", target=self.ocr.main)
 
     def __del__(self):
         self.ocr.exit_now = True
@@ -643,7 +740,6 @@ class OCRThread(QThread):
         self.wait()
 
     def run(self):
-        self.ocr_thread = threading.Thread(name="ocr_thread", target=self.ocr.main)
         self.ocr_thread.start()
 
 
@@ -651,14 +747,13 @@ class APIThread(QThread):
     def __init__(self, gui):
         QThread.__init__(self)
         self.api = APIReader(gui=gui)
-        self.api_thread = None
+        self.api_thread = threading.Thread(name="api_thread", target=api.run)
 
     def __del__(self):
         self.api.cancel_event()
         self.wait()
 
     def run(self):
-        self.api_thread = threading.Thread(name="api_thread", target=api.run)
         self.api.run(blocking=False)
 
 
@@ -681,6 +776,7 @@ if __name__ == "__main__":
     market_api = window.market_api
 
     app.exec_()
+    ocr_thread.ocr.exit_now = True
     market_api.exit_now = True
     ocr_thread.terminate()
     api_thread.terminate()

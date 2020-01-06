@@ -34,6 +34,9 @@ class OCR:
         self.x_offset = 521
         self.y_offset = 400
 
+        self.warframe_w = 0
+        self.warframe_h = 0
+
         box_w = 223
         half_box_w = int(box_w / 2)
         self.crop_list = [(0, 27, w, h),  # the entire bottom
@@ -178,8 +181,12 @@ class OCR:
         rect = win32gui.GetWindowRect(hwnd)
         x = rect[0]
         y = rect[1]
-        if self.gui is not None and not self.gui.is_slider_max_set:
-            self.gui.set_sliders_range(rect[2]-x, rect[3]-y)
+        warframe_w = rect[2]-x
+        warframe_h = rect[3]-y
+        if self.gui is not None and (warframe_w != self.warframe_w or warframe_h != self.warframe_h):
+            self.gui.set_sliders_range(warframe_w, warframe_h)
+            self.warframe_h = warframe_h
+            self.warframe_w = warframe_w
 
         top = self.y_offset + y
         left = self.x_offset + x
