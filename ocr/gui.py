@@ -69,6 +69,10 @@ class Window(QWidget):
         self.hide_relics = {}
         self.hidden_relics = set()
 
+        self.hide_missions = {}
+        self.hidden_missions = set()
+        self.hide_missions_box = None
+
         self.crop_img = None
         self.filter_img = None
 
@@ -195,12 +199,17 @@ class Window(QWidget):
         settings_layout_3 = QVBoxLayout()
         settings_layout_3.addWidget(hide_box)
         settings_layout_3.addWidget(hide_relics_box)
-        settings_layout_3.addWidget(button_box)
+
+        hide_missions_box = self.make_hide_missions_box()
+        settings_layout_4 = QVBoxLayout()
+        settings_layout_4.addWidget(hide_missions_box)
+        settings_layout_4.addWidget(button_box)
 
         settings_layout = QHBoxLayout()
         settings_layout.addLayout(settings_layout_1)
         settings_layout.addLayout(settings_layout_2)
         settings_layout.addLayout(settings_layout_3)
+        settings_layout.addLayout(settings_layout_4)
 
         self.dialog = QDialog()
         self.dialog.setWindowTitle("Preferences")
@@ -290,6 +299,37 @@ class Window(QWidget):
         filter_img_layout = QVBoxLayout()
         filter_img_layout.addWidget(self.image_label2)
         self.filter_img.setLayout(filter_img_layout)
+
+    def make_hide_missions_box(self, missions=None):
+        if self.hide_missions_box is None:
+            self.hide_missions_box = QGroupBox("Hide Missions")
+        if missions is not None:
+            hide_missions_layout = QGridLayout()
+            hide_missions_layout.setColumnStretch(2, 2)
+            hide_missions_layout.setAlignment(Qt.AlignTop)
+            hide_missions_layout.setContentsMargins(0, 0, 0, 0)
+
+            skip_missions = ["MT_SECTOR", "MT_PVP", "MT_LANDSCAPE", "MT_EVACUATION", "MT_ASSASSINATION", "MT_ARENA"]
+            seen_missions = set()
+            i = 0
+            for mission in missions:
+                if mission not in skip_missions and mission not in seen_missions:
+                    mission_name = missions[mission]['value']
+                    self.hide_missions[mission_name] = QCheckBox(mission_name)
+                    self.hide_missions[mission_name].setChecked(False)
+                    self.hide_missions[mission_name].stateChanged.connect(partial(self.set_hidden_mission, mission_name))
+                    hide_missions_layout.addWidget(self.hide_missions[mission_name], int(i/2),i % 2)
+                    i += 1
+                    seen_missions.add(mission_name)
+            self.hide_missions_box.setLayout(hide_missions_layout)
+        return self.hide_missions_box
+
+    def set_hidden_mission(self, mission):
+        if self.hide_missions[mission].isChecked():
+            self.hidden_missions.add(mission)
+        else:
+            self.hidden_missions.remove(mission)
+        self.update_mission_table_hidden()
 
     def make_hide_relics_box(self):
         hide_relics_layout = QVBoxLayout()
@@ -654,6 +694,8 @@ class Window(QWidget):
         for i in range(len(self.missions)):
             if self.missions[i][0] in self.hidden_relics:
                 self.mission_table.setRowHidden(i, True)
+            elif self.missions[i][2] in self.hidden_missions:
+                self.mission_table.setRowHidden(i, True)
             else:
                 self.mission_table.setRowHidden(i, False)
 
@@ -670,6 +712,7 @@ class Window(QWidget):
 
     def set_api(self, wf_api):
         self.api = wf_api
+        self.make_hide_missions_box(self.api.mission_types)
 
     def set_hidden_relic(self, relic):
         if self.hide_relics[relic].isChecked():

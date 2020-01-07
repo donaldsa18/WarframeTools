@@ -15,6 +15,10 @@ class APIReader:
         with open('resources\\solNodes.json') as sol_nodes_file:
             self.sol_nodes = json.load(sol_nodes_file)
 
+        self.mission_types = None
+        with open('resources\\missionTypes.json') as mission_types_file:
+            self.mission_types = json.load(mission_types_file)
+
         self.api_str = "http://content.warframe.com/dynamic/worldState.php"
         if gui is not None:
             self.gui = gui
