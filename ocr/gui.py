@@ -2,6 +2,7 @@ from PyQt5.QtWidgets import QTableWidget, QWidget, QVBoxLayout, QLabel, QAbstrac
     QSlider, QGridLayout, QGroupBox, QCheckBox, QHeaderView, QPushButton, QProgressBar, QTableWidgetItem, QDialog, QDialogButtonBox
 from PyQt5.QtGui import QIcon, QPixmap, QImage
 from PyQt5.QtCore import Qt, QThread, QTimer, QSettings
+#from PyQt5 import QtSvg
 import qdarkstyle
 from functools import partial
 from ocr import OCR
@@ -127,7 +128,7 @@ class Window(QWidget):
 
         self.layout = QVBoxLayout()
         self.layout.setAlignment(Qt.AlignTop)
-        self.layout.addSpacing(-14)
+        self.layout.addSpacing(-12)
         self.layout.addLayout(settings_button_box)
         self.layout.addWidget(self.crop_img)
         self.layout.addWidget(self.filter_img)
@@ -135,8 +136,22 @@ class Window(QWidget):
         self.setLayout(self.layout)
 
     def make_settings_button_box(self):
-        settings_button = QPushButton("\u2699")
-        settings_button.setStyleSheet("background-color: rgba(0, 0, 0, 255); font-size: 23px;")
+        settings_button = QPushButton()
+        style_sheet = """
+        
+        # Gear icon is from: https://iconscout.com/icon/gear-222
+        QPushButton {
+            qproperty-icon: url(" ");
+            qproperty-iconSize: 15px 15px;
+            border-image: url("resources/Gear.svg");
+            background-color: rgba(255, 255, 255, 0);
+        }
+        
+        QPushButton:hover {
+            border-image: url("resources/SelectedGear.svg");
+        }"""
+        settings_button.setStyleSheet(style_sheet)
+        #settings_button.setStyleSheet("background-color: rgba(0, 0, 0, 255); font-size: 23px;")
         settings_button.clicked.connect(self.show_preferences)
         settings_button.setFixedWidth(30)
         settings_button.setFixedHeight(30)
@@ -144,7 +159,7 @@ class Window(QWidget):
         settings_button_hb = QHBoxLayout()
         settings_button_hb.setAlignment(Qt.AlignRight)
         settings_button_hb.addWidget(settings_button)
-        settings_button_hb.addSpacing(-13)
+        settings_button_hb.addSpacing(-11)
         return settings_button_hb
 
     def make_bot_box(self):
