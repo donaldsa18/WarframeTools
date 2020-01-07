@@ -137,9 +137,8 @@ class Window(QWidget):
 
     def make_settings_button_box(self):
         settings_button = QPushButton()
-        style_sheet = """
-        
         # Gear icon is from: https://iconscout.com/icon/gear-222
+        style_sheet = """
         QPushButton {
             qproperty-icon: url(" ");
             qproperty-iconSize: 15px 15px;
