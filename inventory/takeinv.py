@@ -1,6 +1,12 @@
 import cv2
 import numpy as np
-import pytesseract
+import os
+import pywintypes
+#import pytesseract
+tessdata_path = r"C:\Users\Anthony\VirtualBox VMs\Shared\warframe\WarframeTools\ocr\tesseract4win64-4.0-beta\tessdata"
+if os.path.isdir('tessdata'):
+    os.environ['TESSDATA_PREFIX'] = os.path.abspath(tessdata_path)
+from tesserocr import PyTessBaseAPI, PSM, OEM
 from PIL import Image
 import re
 import imutils
@@ -102,6 +108,7 @@ w_max = 60
 datetime_format = "%Y-%m-%d %I.%M.%S%p"
 pad = 2
 
+tesseract_api = PyTessBaseAPI(tessdata_path, "eng")
 
 def extract_number(hsv, n, x, y, w, h):
     # get the number by itself
@@ -204,12 +211,14 @@ def parse_primes(dict_text):
 
     return read_primes_start + read_primes_end
 
+
 common_errors = {
     'ERROR: Kogake Prime': 'Kogake Prime Boot',
     'ERROR: Silva Aegis Prime Blade': 'Silva & Aegis Prime Blade',
     'ERROR: Silva Aegis Prime Blueprint': 'Silva & Aegis Prime Blueprint',
-	'ERROR: Kavasa Prime Buckle': 'Kavasa Prime Buckle'
+    'ERROR: Kavasa Prime Buckle': 'Kavasa Prime Buckle'
 }
+
 
 def read_col(img):
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
@@ -225,7 +234,8 @@ def read_col(img):
     num_results = match_img(num_imgs)
 
     img_pil = Image.fromarray(mask)
-    ocr_str = pytesseract.image_to_string(img_pil)
+    tesseract_api.SetImage(img_pil)
+    ocr_str = tesseract_api.GetUTF8Text()
     sanitized = sanitize(ocr_str)
     dict_text = dict_match(sanitized)
     read_primes = parse_primes(dict_text)
@@ -267,7 +277,7 @@ def screenshot():
     cDC.BitBlt((0, 0), (w, h), dcObj, (left, top), win32con.SRCCOPY)
 
     bmpRGB = dataBitMap.GetBitmapBits(True)
-    img = np.fromstring(bmpRGB, dtype='uint8')
+    img = np.frombuffer(bmpRGB, dtype='uint8')
     img.shape = (h, w, 4)
     cv2.imwrite("primescreenshot.bmp", img)
 
@@ -290,11 +300,11 @@ inventory_csv = open('inventory_gen.csv', 'w')
 inventory_csv.write("Have,Quantity\n")
 lock = threading.Lock()
 
-
 last_move_time = None
 last_y = 0
 last_row = None
 order = 1
+
 
 def check_screenshot():
     global last_row, last_move_time, last_y, order
@@ -342,6 +352,4 @@ def main():
         print(e)
 
 
-
 main()
-
